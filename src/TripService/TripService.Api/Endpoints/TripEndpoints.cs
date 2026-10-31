@@ -1,4 +1,4 @@
-using TripService.Api.Auth;
+using BuildingBlocks.Security;
 using TripService.Application.Common.Interfaces;
 using TripService.Application.Trips.Commands.AcceptTrip;
 using TripService.Application.Trips.Commands.DropOffTrip;

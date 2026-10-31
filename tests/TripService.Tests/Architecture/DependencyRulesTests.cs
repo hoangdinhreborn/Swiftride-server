@@ -1,5 +1,4 @@
 using NetArchTest.Rules;
-using TripService.Api.Auth;
 using TripService.Application.Common.Interfaces;
 using TripService.Domain.Trips;
 using TripService.Infrastructure.Persistence;

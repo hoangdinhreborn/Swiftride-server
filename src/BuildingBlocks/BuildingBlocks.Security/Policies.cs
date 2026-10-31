@@ -1,4 +1,4 @@
-namespace MatchingService.Api.Auth;
+namespace BuildingBlocks.Security;
 
 public static class Policies
 {

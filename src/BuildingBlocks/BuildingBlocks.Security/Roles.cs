@@ -1,4 +1,4 @@
-namespace TripService.Application.Common.Security;
+namespace BuildingBlocks.Security;
 
 public static class Roles
 {
