@@ -1,0 +1,15 @@
+using System.Net.Http.Headers;
+using PaymentService.Application.Common.Interfaces;
+
+namespace PaymentService.Infrastructure.Gateways;
+
+public class BearerTokenHandler(IAccessTokenProvider tokens) : DelegatingHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        if (tokens.Token is { Length: > 0 } token)
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        return base.SendAsync(request, ct);
+    }
+}

@@ -1,0 +1,3 @@
+namespace PaymentService.Application.Common.Exceptions;
+
+public class NotFoundException(string message) : Exception(message);
