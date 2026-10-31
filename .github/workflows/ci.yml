@@ -1,0 +1,71 @@
+name: SwiftRide CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  Jwt__Key: 'ci-secret-key-at-least-32-chars-for-test-pipeline!'
+
+jobs:
+  # =========================================================================
+  # 1. Job Build & Test (.NET 10 Solution)
+  # =========================================================================
+  build-and-test:
+    name: Build & Test (.NET 10)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore Dependencies
+        run: dotnet restore SwiftRide.slnx
+
+      - name: Build Solution (Release)
+        run: dotnet build --no-restore --configuration Release SwiftRide.slnx
+
+      - name: Run Unit & Architecture Tests
+        run: >
+          dotnet test --no-build --configuration Release
+          --verbosity normal
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload Test Results Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./TestResults
+          if-no-files-found: ignore
+
+  # =========================================================================
+  # 2. Job Kiểm tra tính hợp lệ của Hạ tầng Docker Compose
+  # =========================================================================
+  docker-validate:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Prepare .env from .env.example
+        run: cp .env.example .env
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config

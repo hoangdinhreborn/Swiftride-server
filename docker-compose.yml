@@ -1,0 +1,64 @@
+services:
+  # =========================================================================
+  # 1. PostgreSQL (TripService - TripDb & PaymentService - PayDb)
+  # =========================================================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: swiftride-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-swiftride}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swiftride123}
+      POSTGRES_DB: ${POSTGRES_DB:-tripdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swiftride} -d ${POSTGRES_DB:-tripdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # 2. MongoDB (MatchingService - MatchDb: Driver Locations & GeoSpatial)
+  # =========================================================================
+  mongodb:
+    image: mongo:7-jammy
+    container_name: swiftride-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # 3. RabbitMQ (Message Broker & Event Bus)
+  # =========================================================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: swiftride-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"     # AMQP protocol
+      - "15672:15672"   # RabbitMQ Management Web UI (http://localhost:15672)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  mongo_data:
+  rabbitmq_data:
