@@ -1,71 +1,45 @@
-name: SwiftRide CI Pipeline
+name: CI
 
 on:
   push:
-    branches:
-      - main
-      - 'feature/**'
+    branches: [main, 'feature/**']
   pull_request:
-    branches:
-      - main
-
-env:
-  DOTNET_VERSION: '10.0.x'
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
-  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
-  Jwt__Key: 'ci-secret-key-at-least-32-chars-for-test-pipeline!'
+    branches: [main]
 
 jobs:
-  # =========================================================================
-  # 1. Job Build & Test (.NET 10 Solution)
-  # =========================================================================
   build-and-test:
-    name: Build & Test (.NET 10)
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore Dependencies
-        run: dotnet restore SwiftRide.slnx
-
-      - name: Build Solution (Release)
-        run: dotnet build --no-restore --configuration Release SwiftRide.slnx
-
-      - name: Run Unit & Architecture Tests
-        run: >
-          dotnet test --no-build --configuration Release
-          --verbosity normal
-          --collect:"XPlat Code Coverage"
-          --results-directory ./TestResults
-
-      - name: Upload Test Results Artifact
+          dotnet-version: 10.0.x
+      - run: dotnet restore SwiftRide.slnx
+      - run: dotnet build SwiftRide.slnx --no-restore --configuration Release
+      - run: dotnet test SwiftRide.slnx --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./test-results
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: ./TestResults
-          if-no-files-found: ignore
+          path: test-results
 
-  # =========================================================================
-  # 2. Job Kiểm tra tính hợp lệ của Hạ tầng Docker Compose
-  # =========================================================================
-  docker-validate:
-    name: Validate Docker Compose
+  docker-e2e:
+    needs: build-and-test
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Prepare .env from .env.example
+      - uses: actions/checkout@v4
+      - name: Tạo .env từ file mẫu
         run: cp .env.example .env
-
-      - name: Validate Docker Compose Configuration
-        run: docker compose config
+      - name: Kiểm tra cú pháp compose
+        run: docker compose config -q
+      - name: Build và khởi động toàn bộ hệ thống
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Smoke test (đặt xe -> thanh toán -> Paid)
+        run: bash scripts/smoke.sh
+      - name: In log khi lỗi
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+      - name: Dọn dẹp
+        if: always()
+        run: docker compose down -v

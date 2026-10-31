@@ -1,6 +1,9 @@
 <Solution>
-  <Folder Name="/src/" />
+  <Folder Name="/src/">
+    <Project Path="src/ApiGateway/ApiGateway.csproj" />
+  </Folder>
   <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Observability/BuildingBlocks.Observability.csproj" />
     <Project Path="src/BuildingBlocks/BuildingBlocks.Security/BuildingBlocks.Security.csproj" />
   </Folder>
   <Folder Name="/src/MatchingService/">
@@ -8,6 +11,12 @@
     <Project Path="src/MatchingService/MatchingService.Application/MatchingService.Application.csproj" />
     <Project Path="src/MatchingService/MatchingService.Domain/MatchingService.Domain.csproj" />
     <Project Path="src/MatchingService/MatchingService.Infrastructure/MatchingService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/PaymentService/">
+    <Project Path="src/PaymentService/PaymentService.Api/PaymentService.Api.csproj" />
+    <Project Path="src/PaymentService/PaymentService.Application/PaymentService.Application.csproj" />
+    <Project Path="src/PaymentService/PaymentService.Domain/PaymentService.Domain.csproj" />
+    <Project Path="src/PaymentService/PaymentService.Infrastructure/PaymentService.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/TripService/">
     <Project Path="src/TripService/TripService.Api/TripService.Api.csproj" />
@@ -17,6 +26,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MatchingService.Tests/MatchingService.Tests.csproj" />
+    <Project Path="tests/PaymentService.Tests/PaymentService.Tests.csproj" />
     <Project Path="tests/TripService.Tests/TripService.Tests.csproj" />
   </Folder>
 </Solution>

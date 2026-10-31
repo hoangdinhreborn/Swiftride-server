@@ -1,64 +1,197 @@
+name: swiftride
+
+x-service-env: &service-env
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+  Jwt__Key: ${JWT_KEY:?Hay dat JWT_KEY trong file .env}
+  Jwt__Issuer: ${JWT_ISSUER:-SwiftRide}
+  Jwt__Audience: ${JWT_AUDIENCE:-SwiftRide}
+  Otlp__Endpoint: http://otel:18889
+
+x-app-health: &app-health
+  healthcheck:
+    test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+    interval: 5s
+    timeout: 3s
+    retries: 24
+    start_period: 10s
+
 services:
   # =========================================================================
-  # 1. PostgreSQL (TripService - TripDb & PaymentService - PayDb)
+  # 1. Cơ sở dữ liệu chuyên biệt cho TripService
   # =========================================================================
-  postgres:
-    image: postgres:17-alpine
-    container_name: swiftride-postgres
-    restart: unless-stopped
+  postgres-trip:
+    image: postgres:16-alpine
+    container_name: swiftride-postgres-trip
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-swiftride}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swiftride123}
-      POSTGRES_DB: ${POSTGRES_DB:-tripdb}
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Hay dat POSTGRES_PASSWORD trong file .env}
+      POSTGRES_DB: tripdb
+    ports: ["5432:5432"]
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata_trip:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swiftride} -d ${POSTGRES_DB:-tripdb}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d tripdb"]
       interval: 5s
-      timeout: 5s
-      retries: 5
+      timeout: 3s
+      retries: 20
 
   # =========================================================================
-  # 2. MongoDB (MatchingService - MatchDb: Driver Locations & GeoSpatial)
+  # 2. Cơ sở dữ liệu chuyên biệt cho PaymentService (Tách biệt hoàn toàn)
   # =========================================================================
-  mongodb:
-    image: mongo:7-jammy
-    container_name: swiftride-mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: swiftride-postgres-payment
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-swiftride}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Hay dat POSTGRES_PASSWORD trong file .env}
+      POSTGRES_DB: paydb
+    ports: ["5433:5432"]
     volumes:
-      - mongo_data:/data/db
+      - pgdata_payment:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d paydb"]
       interval: 5s
-      timeout: 5s
-      retries: 5
+      timeout: 3s
+      retries: 20
 
   # =========================================================================
-  # 3. RabbitMQ (Message Broker & Event Bus)
+  # 3. Cơ sở dữ liệu MongoDB cho MatchingService (Vị trí tài xế & Geo-spatial)
+  # =========================================================================
+  mongo:
+    image: mongo:7
+    container_name: swiftride-mongo
+    ports: ["27017:27017"]
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # =========================================================================
+  # 4. Message Broker RabbitMQ (Event-Driven: Saga & Outbox)
   # =========================================================================
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: swiftride-rabbitmq
-    restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
-    ports:
-      - "5672:5672"     # AMQP protocol
-      - "15672:15672"   # RabbitMQ Management Web UI (http://localhost:15672)
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-swiftride}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Hay dat RABBITMQ_PASSWORD trong file .env}
+    ports: ["5672:5672", "15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+
+  # =========================================================================
+  # 5. .NET Aspire Dashboard (OpenTelemetry Distributed Tracing & Metrics)
+  # =========================================================================
+  otel:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    container_name: swiftride-aspire-dashboard
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports: ["18888:18888"]   # giao diện UI; OTLP (18889) chỉ mở trong mạng Docker
+
+  # =========================================================================
+  # 6. Matching Service
+  # =========================================================================
+  matching:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        PROJECT: src/MatchingService/MatchingService.Api/MatchingService.Api.csproj
+        DLL: MatchingService.Api.dll
+    image: swiftride/matching:dev
+    container_name: swiftride-matching
+    environment:
+      <<: *service-env
+      ConnectionStrings__MatchDb: mongodb://mongo:27017
+      MongoDb__Database: matchdb
+    depends_on:
+      mongo: { condition: service_healthy }
+      otel: { condition: service_started }
+    <<: *app-health
+
+  # =========================================================================
+  # 7. Trip Service
+  # =========================================================================
+  trip:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        PROJECT: src/TripService/TripService.Api/TripService.Api.csproj
+        DLL: TripService.Api.dll
+    image: swiftride/trip:dev
+    container_name: swiftride-trip
+    environment:
+      <<: *service-env
+      ConnectionStrings__TripDb: Host=postgres-trip;Port=5432;Database=tripdb;Username=${POSTGRES_USER:-swiftride};Password=${POSTGRES_PASSWORD}
+      RabbitMq__Uri: amqp://${RABBITMQ_USER:-swiftride}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      Services__Matching__BaseUrl: http://matching:8080
+      Database__MigrateOnStartup: "true"
+    depends_on:
+      postgres-trip: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      matching: { condition: service_started }
+      otel: { condition: service_started }
+    <<: *app-health
+
+  # =========================================================================
+  # 8. Payment Service (Sử dụng postgres-payment riêng biệt)
+  # =========================================================================
+  payment:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        PROJECT: src/PaymentService/PaymentService.Api/PaymentService.Api.csproj
+        DLL: PaymentService.Api.dll
+    image: swiftride/payment:dev
+    container_name: swiftride-payment
+    environment:
+      <<: *service-env
+      ConnectionStrings__PayDb: Host=postgres-payment;Port=5432;Database=paydb;Username=${POSTGRES_USER:-swiftride};Password=${POSTGRES_PASSWORD}
+      RabbitMq__Uri: amqp://${RABBITMQ_USER:-swiftride}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      Services__Trip__BaseUrl: http://trip:8080
+      AutoPay__Token: ${AUTOPAY_TOKEN:-tok_default}
+      Database__MigrateOnStartup: "true"
+    depends_on:
+      postgres-payment: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      otel: { condition: service_started }
+    <<: *app-health
+
+  # =========================================================================
+  # 9. API Gateway (YARP Reverse Proxy)
+  # =========================================================================
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        PROJECT: src/ApiGateway/ApiGateway.csproj
+        DLL: ApiGateway.dll
+    image: swiftride/gateway:dev
+    container_name: swiftride-gateway
+    environment:
+      <<: *service-env
+      ReverseProxy__Clusters__trip__Destinations__d1__Address: http://trip:8080
+      ReverseProxy__Clusters__matching__Destinations__d1__Address: http://matching:8080
+      ReverseProxy__Clusters__payment__Destinations__d1__Address: http://payment:8080
+    ports: ["5000:8080"]
+    depends_on:
+      trip: { condition: service_healthy }
+      matching: { condition: service_healthy }
+      payment: { condition: service_healthy }
+    <<: *app-health
 
 volumes:
-  postgres_data:
-  mongo_data:
-  rabbitmq_data:
+  pgdata_trip:
+  pgdata_payment:
+  mongodata:
