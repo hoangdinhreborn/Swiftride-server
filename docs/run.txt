@@ -1,0 +1,19 @@
+﻿# =============================================================================
+# Hướng Dẫn Chạy Nhanh SwiftRide
+# =============================================================================
+
+# 1. Khởi động hạ tầng (PostgreSQL, MongoDB, RabbitMQ):
+docker compose up -d
+
+# 2. Migration PostgreSQL cho TripService:
+dotnet ef migrations add InitialCreate --project src/TripService/TripService.Infrastructure --startup-project src/TripService/TripService.Api
+dotnet ef database update --project src/TripService/TripService.Infrastructure --startup-project src/TripService/TripService.Api
+
+# 3. Chạy TripService (Port 5130):
+dotnet run --project src/TripService/TripService.Api
+
+# 4. Chạy MatchingService (Port 5197):
+dotnet run --project src/MatchingService/MatchingService.Api
+
+# 5. Chạy toàn bộ kiểm thử:
+dotnet test
