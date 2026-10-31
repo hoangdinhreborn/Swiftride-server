@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/MatchingService/">
+    <Project Path="src/MatchingService/MatchingService.Api/MatchingService.Api.csproj" />
+    <Project Path="src/MatchingService/MatchingService.Application/MatchingService.Application.csproj" />
+    <Project Path="src/MatchingService/MatchingService.Domain/MatchingService.Domain.csproj" />
+    <Project Path="src/MatchingService/MatchingService.Infrastructure/MatchingService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/TripService/">
+    <Project Path="src/TripService/TripService.Api/TripService.Api.csproj" />
+    <Project Path="src/TripService/TripService.Application/TripService.Application.csproj" />
+    <Project Path="src/TripService/TripService.Domain/TripService.Domain.csproj" />
+    <Project Path="src/TripService/TripService.Infrastructure/TripService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MatchingService.Tests/MatchingService.Tests.csproj" />
+    <Project Path="tests/TripService.Tests/TripService.Tests.csproj" />
+  </Folder>
+</Solution>
