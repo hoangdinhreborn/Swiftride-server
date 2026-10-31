@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Security\BuildingBlocks.Security.csproj" />
     <ProjectReference Include="..\MatchingService.Application\MatchingService.Application.csproj" />
     <ProjectReference Include="..\MatchingService.Infrastructure\MatchingService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Observability\BuildingBlocks.Observability.csproj" />
   </ItemGroup>
 
   <ItemGroup>

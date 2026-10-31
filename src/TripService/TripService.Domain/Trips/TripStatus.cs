@@ -1,3 +1,3 @@
 namespace TripService.Domain.Trips;
 
-public enum TripStatus { Requested, DriverAccepted, PickedUp, DroppedOff, Cancelled }
+public enum TripStatus { Requested, DriverAccepted, PickedUp, DroppedOff, PaymentPending, Paid, Cancelled }

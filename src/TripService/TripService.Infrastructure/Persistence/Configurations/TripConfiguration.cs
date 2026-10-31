@@ -13,5 +13,6 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
         b.Property(x => x.Pickup).HasMaxLength(300);
         b.Property(x => x.Destination).HasMaxLength(300);
         b.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        b.Property(x => x.QuotedFare).HasPrecision(18, 2);
     }
 }

@@ -15,6 +15,8 @@ public class GlobalExceptionHandler : IExceptionHandler
             NotFoundException => (404, "Không tìm thấy"),
             ForbiddenException => (403, "Không có quyền thực hiện"),
             ConcurrencyException => (409, "Xung đột dữ liệu"),
+            PricingUnavailableException => (503, "Dịch vụ báo giá không khả dụng"),
+            BadHttpRequestException => (400, "Yêu cầu không hợp lệ"),
             DomainException => (409, "Sai trạng thái nghiệp vụ"),
             _ => (500, "")
         };
