@@ -1,6 +1,5 @@
 using TripService.Application.Common.Exceptions;
 using TripService.Application.Common.Interfaces;
-using TripService.Application.Common.Security;
 using TripService.Application.Trips.Dtos;
 using TripService.Application.Trips.Interfaces;
 

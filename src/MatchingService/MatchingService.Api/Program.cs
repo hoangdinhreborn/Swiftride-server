@@ -1,4 +1,4 @@
-using MatchingService.Api.Auth;
+using BuildingBlocks.Security;
 using MatchingService.Api.Endpoints;
 using MatchingService.Api.ExceptionHandling;
 using MatchingService.Application;
@@ -15,7 +15,7 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("MatchDb")!,
     builder.Configuration["MongoDb:Database"]!);
-builder.Services.AddApiAuth(builder.Configuration);
+builder.Services.AddSwiftRideAuth(builder.Configuration);
 
 var app = builder.Build();
 
@@ -25,6 +25,6 @@ app.UseAuthorization();
 
 app.MapDriverEndpoints();
 app.MapPricingEndpoints();
-if (app.Environment.IsDevelopment()) app.MapDevEndpoints();
+if (app.Environment.IsDevelopment()) app.MapDevAuthEndpoints(builder.Configuration);
 
 app.Run();

@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Security/BuildingBlocks.Security.csproj" />
+  </Folder>
   <Folder Name="/src/MatchingService/">
     <Project Path="src/MatchingService/MatchingService.Api/MatchingService.Api.csproj" />
     <Project Path="src/MatchingService/MatchingService.Application/MatchingService.Application.csproj" />

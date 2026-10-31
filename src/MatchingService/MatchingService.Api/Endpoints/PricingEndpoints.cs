@@ -1,4 +1,4 @@
-using MatchingService.Api.Auth;
+using BuildingBlocks.Security;
 using MatchingService.Application.Common.Interfaces;
 using MatchingService.Application.Pricing.Dtos;
 using MatchingService.Application.Pricing.Queries.GetQuote;

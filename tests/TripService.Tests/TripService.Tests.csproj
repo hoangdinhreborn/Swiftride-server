@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -18,9 +18,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="BuildingBlocks.Security" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.Security\BuildingBlocks.Security.csproj" />
     <ProjectReference Include="..\..\src\TripService\TripService.Domain\TripService.Domain.csproj" />
     <ProjectReference Include="..\..\src\TripService\TripService.Application\TripService.Application.csproj" />
     <ProjectReference Include="..\..\src\TripService\TripService.Infrastructure\TripService.Infrastructure.csproj" />

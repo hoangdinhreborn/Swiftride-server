@@ -1,4 +1,4 @@
-using TripService.Api.Auth;
+using BuildingBlocks.Security;
 using TripService.Api.Endpoints;
 using TripService.Api.ExceptionHandling;
 using TripService.Application;
@@ -11,7 +11,7 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("TripDb")!);
-builder.Services.AddApiAuth(builder.Configuration);
+builder.Services.AddSwiftRideAuth(builder.Configuration);
 
 var app = builder.Build();
 
@@ -20,6 +20,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapTripEndpoints();
-if (app.Environment.IsDevelopment()) app.MapDevEndpoints();
+if (app.Environment.IsDevelopment()) app.MapDevAuthEndpoints(builder.Configuration);
 
 app.Run();
