@@ -13,6 +13,10 @@ D:\Source\SwiftRide
 │   docker-compose.yml                               # Hạ tầng gồm PostgreSQL, MongoDB, RabbitMQ
 │   SwiftRide.slnx                                   # Quản trị toàn bộ projects (.NET 10 Solution)
 │
+├── .github/
+│   └── workflows/
+│       └── ci.yml                                   # GitHub Actions CI: Build, Test (41 tests) & Docker validate
+│
 ├── docs/
 │   ├── run.txt                                      # Hướng dẫn lệnh chạy nhanh
 │   ├── architecture.md                              # Tài liệu kiến trúc toàn diện (file này)
@@ -281,3 +285,25 @@ Mở 2 terminal riêng biệt:
      -d '{"role":"Driver"}'
    ```
 3. **Dùng Token gọi API**: Gắn Header `Authorization: Bearer <TOKEN>` khi gọi các endpoint `/trips`, `/quote`, `/match` hoặc `/drivers/me/location`.
+
+---
+
+## 6. Đường Ống CI/CD Tự Động (GitHub Actions Pipeline)
+
+Dự án được trang bị luồng kiểm thử tự động tại [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+### Các kích hoạt (Triggers):
+- Mỗi khi `git push` lên nhánh `main` hoặc bất kỳ nhánh `feature/**`.
+- Mỗi khi mở `pull_request` vào nhánh `main`.
+
+### Các giai đoạn (Jobs):
+1. **`build-and-test`**:
+   - Cài đặt .NET 10 SDK (`actions/setup-dotnet@v4`).
+   - Khôi phục NuGet packages (`dotnet restore SwiftRide.slnx`).
+   - Biên dịch cấu hình Release (`dotnet build --no-restore --configuration Release`).
+   - Chạy toàn bộ Unit Tests & Architecture Tests (`dotnet test`), đồng thời thu thập độ bao phủ mã nguồn (Code Coverage).
+   - Xuất kết quả kiểm thử dạng Artifact (`test-results`).
+2. **`docker-validate`**:
+   - Nạp file cấu hình môi trường mẫu `.env.example`.
+   - Chạy lệnh `docker compose config` để bảo đảm file `docker-compose.yml` không bị sai cú pháp hoặc thiếu biến môi trường.
+
