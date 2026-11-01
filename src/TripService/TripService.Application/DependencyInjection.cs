@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using TripService.Application.Common.Interfaces;
+using TripService.Application.Trips;
 
 namespace TripService.Application;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
                          .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerType))
                 services.AddScoped(i, type);
 
+        services.AddScoped<DriverDispatcher>();
         return services;
     }
 }

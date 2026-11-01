@@ -1,14 +1,19 @@
 using TripService.Domain.Common;
+using TripService.Domain.Trips.States;
 
 namespace TripService.Domain.Trips;
 
 public class Trip
 {
     public const int MaxLocationLength = 300;
+    public const int MaxDeclines = 3;   // k trong flowchart
+
+    private List<Guid> _declined = [];
 
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid RiderId { get; private set; }
-    public Guid? DriverId { get; private set; }
+    public Guid? DriverId { get; private set; }           // tài xế đã nhận chuyến
+    public Guid? OfferedDriverId { get; private set; }    // tài xế đang được đề xuất, chờ trả lời
     public string Pickup { get; private set; } = "";
     public double PickupLat { get; private set; }
     public double PickupLng { get; private set; }
@@ -18,6 +23,11 @@ public class Trip
     public decimal QuotedFare { get; private set; }
     public TripStatus Status { get; private set; } = TripStatus.Requested;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+
+    public IReadOnlyList<Guid> DeclinedDriverIds => _declined;
+    public int DeclineCount => _declined.Count;
+
+    private TripState State => TripState.For(Status);
 
     private Trip() { }
 
@@ -45,30 +55,49 @@ public class Trip
         };
     }
 
-    public void AcceptBy(Guid driverId) { Require(TripStatus.Requested); DriverId = driverId; Status = TripStatus.DriverAccepted; }
-    public void PickUp() { Require(TripStatus.DriverAccepted); Status = TripStatus.PickedUp; }
-    public void DropOff() { Require(TripStatus.PickedUp); Status = TripStatus.DroppedOff; }
-    // Idempotent: broker giao at-least-once nên cùng kết quả có thể đến nhiều lần
-    public void MarkPaid()
+    // Mỗi hành động hỏi state hiện tại trước. State từ chối thì ném DomainException và Trip không bị đổi gì
+    public void Confirm() => MoveTo(State.Confirm());
+    public void NoDriverFound() => MoveTo(State.NoDriverFound());
+    public void Cancel() => MoveTo(State.Cancel());
+    public void PickUp() => MoveTo(State.PickUp());
+    public void DropOff() => MoveTo(State.DropOff());
+
+    // Idempotent: broker giao at-least-once, cùng một kết quả có thể đến nhiều lần
+    public void MarkPaid() => MoveTo(State.MarkPaid());
+    public void MarkPaymentPending() => MoveTo(State.MarkPaymentPending());
+
+    public void OfferTo(Guid driverId)
     {
-        if (Status == TripStatus.Paid) return;
-        if (Status is not (TripStatus.DroppedOff or TripStatus.PaymentPending))
-            throw new DomainException($"Không thể ghi nhận thanh toán khi chuyến đang ở trạng thái {Status}");
-        Status = TripStatus.Paid;
+        var next = State.OfferTo();
+        if (driverId == Guid.Empty) throw new DomainValidationException("Thiếu thông tin tài xế");
+        if (_declined.Contains(driverId)) throw new DomainException("Tài xế này đã từ chối chuyến");
+
+        MoveTo(next);
+        OfferedDriverId = driverId;
     }
 
-    // Thanh toán thất bại đến muộn sau khi đã Paid (sai thứ tự) thì bỏ qua
-    public void MarkPaymentPending()
+    public void AcceptBy(Guid driverId)
     {
-        if (Status is TripStatus.PaymentPending or TripStatus.Paid) return;
-        Require(TripStatus.DroppedOff);
-        Status = TripStatus.PaymentPending;
+        var next = State.Accept();
+        if (OfferedDriverId != driverId) throw new DomainException("Chuyến này đang được đề xuất cho tài xế khác");
+
+        DriverId = driverId;
+        MoveTo(next);
     }
 
-    private void Require(TripStatus expected)
+    public void DeclineBy(Guid driverId)
     {
-        if (Status != expected)
-            throw new DomainException($"Trạng thái hiện tại là {Status}, cần {expected}");
+        var next = State.Decline(_declined.Count + 1);
+        if (OfferedDriverId != driverId) throw new DomainException("Chuyến này đang được đề xuất cho tài xế khác");
+
+        _declined.Add(driverId);
+        MoveTo(next);
+    }
+
+    private void MoveTo(TripState next)
+    {
+        Status = next.Status;
+        if (Status != TripStatus.DriverOffered) OfferedDriverId = null;   // hết lời đề xuất
     }
 
     private static string Normalize(string? value, string name)
@@ -81,7 +110,7 @@ public class Trip
         return v;
     }
 
-    // Viết kiểu a >= x && a <= y để NaN cũng bị từ chối
+    // Viết kiểu v >= x && v <= y để NaN cũng bị từ chối
     private static double Latitude(double v, string name)
         => v >= -90 && v <= 90 ? v : throw new DomainValidationException($"Vĩ độ {name} phải nằm trong khoảng -90 đến 90");
 

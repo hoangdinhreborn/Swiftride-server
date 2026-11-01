@@ -28,6 +28,12 @@ public static class DependencyInjection
                 c.Timeout = TimeSpan.FromSeconds(3);
             })
             .AddHttpMessageHandler<BearerTokenHandler>();
+        services.AddHttpClient<IDriverMatchingGateway, MatchingDriverGateway>(c =>
+            {
+                c.BaseAddress = new Uri(matchingBaseUrl);
+                c.Timeout = TimeSpan.FromSeconds(3);
+            })
+    .AddHttpMessageHandler<BearerTokenHandler>();
         services.AddSingleton<IRawPublisher>(new RabbitMqPublisher(rabbitUri));
         services.AddHostedService<OutboxPublisher>();
         services.AddSingleton(new RabbitMqSettings(rabbitUri));

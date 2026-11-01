@@ -14,5 +14,10 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
         b.Property(x => x.Destination).HasMaxLength(300);
         b.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         b.Property(x => x.QuotedFare).HasPrecision(18, 2);
+
+        // Danh sách tài xế đã từ chối: cột uuid[] ánh xạ vào field, mặc định rỗng cho các dòng cũ
+        b.Property<List<Guid>>("_declined").HasColumnName("DeclinedDriverIds").HasDefaultValueSql("'{}'");
+        b.Ignore(x => x.DeclinedDriverIds);
+        b.Ignore(x => x.DeclineCount);
     }
 }

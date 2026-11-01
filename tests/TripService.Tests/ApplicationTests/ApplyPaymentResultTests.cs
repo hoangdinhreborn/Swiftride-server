@@ -15,8 +15,7 @@ public class ApplyPaymentResultTests
 
     private Trip DroppedOffTrip()
     {
-        var trip = TestTrips.Make();
-        trip.AcceptBy(Guid.NewGuid());
+        var trip = TestTrips.Accepted();
         trip.PickUp();
         trip.DropOff();
         _repo.Setup(r => r.GetByIdAsync(trip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(trip);

@@ -20,7 +20,7 @@ public static class DriverEndpoints
             async (MatchDriversQuery q,
                    IHandler<MatchDriversQuery, IReadOnlyList<NearbyDriverDto>> h, CancellationToken ct) =>
                 Results.Ok(await h.HandleAsync(q, ct)))
-            .RequireAuthorization(Policies.RiderOnly);
+            .RequireAuthorization(Policies.AnyRole);
 
         return app;
     }

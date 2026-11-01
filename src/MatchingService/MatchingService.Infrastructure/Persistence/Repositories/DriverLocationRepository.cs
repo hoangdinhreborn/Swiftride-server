@@ -25,16 +25,20 @@ public class DriverLocationRepository(MatchingMongoContext ctx) : IDriverLocatio
     }
 
     public async Task<IReadOnlyList<NearbyDriverDto>> FindNearestAvailableAsync(
-        GeoPoint from, double maxDistanceKm, TimeSpan maxAge, int limit, CancellationToken ct = default)
+    GeoPoint from, double maxDistanceKm, TimeSpan maxAge, int limit,
+    CancellationToken ct = default, IReadOnlyCollection<Guid>? exclude = null)
     {
         var f = Builders<DriverLocationDocument>.Filter;
-        var filter = f.And(
+        var filters = new List<FilterDefinition<DriverLocationDocument>>
+        {
             f.Eq(x => x.IsAvailable, true),
             f.Gte(x => x.UpdatedAt, DateTime.UtcNow - maxAge),
-            f.Near(x => x.Location, ToGeoJson(from), maxDistance: maxDistanceKm * 1000)); // mét
+            f.Near(x => x.Location, ToGeoJson(from), maxDistance: maxDistanceKm * 1000)   // mét
+        };
+        if (exclude is { Count: > 0 }) filters.Add(f.Nin(x => x.DriverId, exclude));
 
         // $near tự sắp theo khoảng cách tăng dần
-        var docs = await ctx.DriverLocations.Find(filter).Limit(limit).ToListAsync(ct);
+        var docs = await ctx.DriverLocations.Find(f.And(filters)).Limit(limit).ToListAsync(ct);
 
         return docs.Select(d =>
         {

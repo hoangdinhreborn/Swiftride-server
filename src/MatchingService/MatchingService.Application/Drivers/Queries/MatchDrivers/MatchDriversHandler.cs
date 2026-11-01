@@ -16,7 +16,7 @@ public sealed class MatchDriversHandler(IDriverLocationRepository repo)
 
         var sw = Stopwatch.StartNew();
         var result = await repo.FindNearestAvailableAsync(
-            pickup, MatchingPolicy.SearchRadiusKm, MatchingPolicy.MaxLocationAge, MatchingPolicy.MaxCandidates, ct);
+            pickup, MatchingPolicy.SearchRadiusKm, MatchingPolicy.MaxLocationAge, MatchingPolicy.MaxCandidates, ct, q.ExcludeDriverIds);
         MatchingMetrics.Record(sw.Elapsed.TotalMilliseconds, found: result.Count > 0);
 
         return result;

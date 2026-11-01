@@ -1,6 +1,6 @@
 # SwiftRide Backend - Hệ Thống Đặt Xe Công Nghệ Microservices (.NET 10)
 
-Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây dựng theo kiến trúc **Microservices**, **Clean Architecture**, **Domain-Driven Design (DDD)** và kiến trúc hướng sự kiện (**Event-Driven Architecture**).
+Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây dựng theo kiến trúc **Microservices**, **Clean Architecture**, **Domain-Driven Design (DDD)**, **State Pattern (GoF)** và kiến trúc hướng sự kiện (**Event-Driven Architecture**).
 
 ---
 
@@ -26,8 +26,10 @@ Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây 
       |    TripService     | |  MatchingService   | |   PaymentService   |
       |     Port: 5130     | |     Port: 5197     | |     Port: 5273     |
       | - Clean Arch (4L)  | | - Strategy Pricing | | - Double-Entry     |
-      | - Outbox Pattern   | | - Geo-Spatial Match| | - Idempotency Key  |
-      +--------------------+ +--------------------+ +--------------------+
+      | - State Pattern    | | - Geo-Spatial Match| | - Idempotency Key  |
+      | - Dispatch Retry   | | - Exclude Declined | | - Outbox Consumer  |
+      | - Outbox Pattern   | +--------------------+ +--------------------+
+      +--------------------+           |                      |
            |          \                |                      |
            |           \               |                      |
            v            \              v                      v
@@ -60,8 +62,8 @@ Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây 
 | Thành phần | Công nghệ | Cổng Host (Docker) | Cổng Local (`dotnet run`) | Mô tả |
 | :--- | :--- | :---: | :---: | :--- |
 | **ApiGateway** | YARP Reverse Proxy | **`5000`** | `5233` | Cổng vào duy nhất của hệ thống, chặn request không hợp lệ tại biên. |
-| **TripService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5130`** | Quản lý vòng đời chuyến đi: Requested $\rightarrow$ Accepted $\rightarrow$ PickedUp $\rightarrow$ DroppedOff $\rightarrow$ Paid. |
-| **MatchingService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5197`** | Tìm tài xế gần nhất theo tọa độ GPS và tính giá động (Surge / Promo Strategy). |
+| **TripService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5130`** | Quản lý vòng đời chuyến đi bằng **State Pattern** & thuật toán điều phối tài xế (retry $\le k$ lần). |
+| **MatchingService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5197`** | Tìm tài xế gần nhất theo tọa độ GPS (loại trừ tài xế đã từ chối) và tính giá động (Surge/Promo Strategy). |
 | **PaymentService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5273`** | Thanh toán chuyến đi, ghi sổ cái kế toán Double-Entry, hỗ trợ Idempotency key. |
 | **PostgreSQL Trip** | PostgreSQL 16 | **`5432`** | `5432` | Cơ sở dữ liệu riêng của `TripService` (Database: `tripdb`). |
 | **PostgreSQL Payment** | PostgreSQL 16 | **`5433`** | `5433` | Cơ sở dữ liệu riêng của `PaymentService` (Database: `paydb`). |
@@ -88,16 +90,21 @@ Hệ thống sẽ tự động:
 3. Tự động áp dụng Migration vào 2 database PostgreSQL khi khởi động (`Database__MigrateOnStartup=true`).
 4. Kết nối sẵn sàng qua API Gateway tại `http://localhost:5000`.
 
-### Bước 3: Chạy Smoke Test kiểm thử tự động toàn bộ luồng nghiệp vụ
+### Bước 3: Chạy Smoke Test kiểm thử tự động toàn bộ 3 kịch bản Flowchart
 ```bash
 bash scripts/smoke.sh
 ```
-Kịch bản kiểm thử sẽ tự động chạy:
-- Xin Token kiểm thử cho Rider & Driver (`POST /dev/token`).
-- Kiểm tra tính bảo mật: Gọi không Token bị chặn 401; Driver đặt xe bị chặn 403.
-- Tạo chuyến đi qua Gateway $\rightarrow$ TripService gọi MatchingService tính cước $\rightarrow$ Trạng thái `Requested`.
-- Tài xế nhận chuyến (`DriverAccepted`) $\rightarrow$ Đón khách (`PickedUp`) $\rightarrow$ Trả khách (`DroppedOff`).
-- Khi trả khách: `TripService` ghi Outbox Event $\rightarrow$ RabbitMQ chuyển sang `PaymentService` $\rightarrow$ Trừ tiền thành công $\rightarrow$ Bắn kết quả về RabbitMQ $\rightarrow$ `TripService` cập nhật trạng thái cuối cùng là **`Paid`**!
+Kịch bản kiểm thử sẽ tự động chạy 3 kịch bản theo đúng đặc tả môn học (Mục 4):
+1. **Kịch bản 1 (Đủ luồng, có tài xế từ chối và retry)**:
+   - Rider yêu cầu chuyến $\rightarrow$ Báo giá cước (`Requested`).
+   - Rider đồng ý giá (`POST /trips/{id}/confirm`) $\rightarrow$ Hệ thống điều phối cho Tài xế $A$ (`DriverOffered`).
+   - Tài xế $A$ từ chối (`POST /trips/{id}/driver-decline`) $\rightarrow$ Hệ thống tự động quét và đề xuất cho Tài xế $B$.
+   - Tài xế $B$ nhận chuyến (`DriverAccepted`) $\rightarrow$ Đón khách (`PickedUp`) $\rightarrow$ Trả khách (`DroppedOff`).
+   - `TripService` ghi Outbox Event $\rightarrow$ RabbitMQ chuyển sang `PaymentService` trừ tiền $\rightarrow$ Cập nhật trạng thái cuối cùng là **`Paid`**!
+2. **Kịch bản 2 (Rider từ chối giá)**:
+   - Rider hủy chuyến (`POST /trips/{id}/cancel`) $\rightarrow$ Chuyển sang trạng thái kết thúc **`Cancelled`**.
+3. **Kịch bản 3 (Tài xế từ chối quá $k$ lần)**:
+   - Các tài xế từ chối vượt quá số lần cho phép ($k = 3$, lần thứ 4 từ chối) $\rightarrow$ Hệ thống chuyển sang trạng thái kết thúc **`Failed`**.
 
 ### Bước 4: Mở Dashboard giám sát
 - **Tra cứu Traces & Logs**: Truy cập `.NET Aspire Dashboard` tại `http://localhost:18888` để xem biểu đồ Gantt phân tán của request qua từng service.
@@ -129,20 +136,21 @@ dotnet ef database update --project src/TripService/TripService.Infrastructure -
 dotnet ef database update --project src/PaymentService/PaymentService.Infrastructure --startup-project src/PaymentService/PaymentService.Api
 ```
 
-### 4. Chạy Kiểm Thử (88 Tests)
+### 4. Chạy Kiểm Thử (198 Tests)
 ```bash
 dotnet test SwiftRide.slnx
 ```
-Kết quả kiểm thử: **88/88 tests PASS 100%**:
-- `TripService.Tests`: 39 tests.
-- `PaymentService.Tests`: 29 tests.
-- `MatchingService.Tests`: 20 tests.
+Kết quả kiểm thử: **198/198 tests PASS 100%**:
+- `TripService.Tests`: **145 tests** (State pattern, Dispatcher retry, Outbox, CQRS Handlers).
+- `PaymentService.Tests`: **33 tests** (Double-entry ledger, Idempotency, Outbox).
+- `MatchingService.Tests`: **20 tests** (Strategy pricing, Haversine, Geo-query).
 
 ---
 
 ## 5. Cấu Trúc Nhánh Git (Branching Strategy)
 
 - **`main`**: Nhánh chính tích hợp toàn bộ hệ thống hoàn chỉnh.
+- **`feature/state-pattern-and-dispatch`**: Hiện thực State Pattern cho Trip và thuật toán điều phối ghép tài xế (retry $\le k$ lần).
 - **`feature/shared-auth`**: Đóng gói thư viện dùng chung `BuildingBlocks.Security`.
 - **`feature/payment-service`**: Microservice thanh toán và sổ cái kế toán độc lập.
 - **`feature/trip-outbox-and-observability`**: Transactional Outbox, RabbitMQ và OpenTelemetry.

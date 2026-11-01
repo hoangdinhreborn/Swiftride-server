@@ -10,5 +10,5 @@ public interface IDriverLocationRepository
 
     // Kết quả đã sắp theo khoảng cách tăng dần
     Task<IReadOnlyList<NearbyDriverDto>> FindNearestAvailableAsync(
-        GeoPoint from, double maxDistanceKm, TimeSpan maxAge, int limit, CancellationToken ct = default);
+        GeoPoint from, double maxDistanceKm, TimeSpan maxAge, int limit, CancellationToken ct = default, IReadOnlyCollection<Guid>? exclude = null);
 }

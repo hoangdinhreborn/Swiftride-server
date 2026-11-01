@@ -11,4 +11,10 @@ public class TripRepository(TripDbContext db) : ITripRepository
 
     public async Task AddAsync(Trip trip, CancellationToken ct = default)
         => await db.Trips.AddAsync(trip, ct);
+
+    public async Task<IReadOnlyList<Trip>> GetOffersForDriverAsync(Guid driverId, CancellationToken ct = default)
+    => await db.Trips
+        .Where(t => t.OfferedDriverId == driverId && t.Status == TripStatus.DriverOffered)
+        .OrderBy(t => t.CreatedAt)
+        .ToListAsync(ct);
 }
