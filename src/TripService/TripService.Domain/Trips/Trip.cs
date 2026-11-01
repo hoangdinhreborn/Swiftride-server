@@ -14,6 +14,7 @@ public class Trip
     public Guid RiderId { get; private set; }
     public Guid? DriverId { get; private set; }           // tài xế đã nhận chuyến
     public Guid? OfferedDriverId { get; private set; }    // tài xế đang được đề xuất, chờ trả lời
+    public DateTime? OfferedAt { get; private set; }
     public string Pickup { get; private set; } = "";
     public double PickupLat { get; private set; }
     public double PickupLng { get; private set; }
@@ -26,6 +27,8 @@ public class Trip
 
     public IReadOnlyList<Guid> DeclinedDriverIds => _declined;
     public int DeclineCount => _declined.Count;
+    public bool IsOfferExpired(DateTime nowUtc, TimeSpan ttl)
+        => Status == TripStatus.DriverOffered && (OfferedAt ?? CreatedAt) + ttl <= nowUtc;
 
     private TripState State => TripState.For(Status);
 
@@ -74,6 +77,7 @@ public class Trip
 
         MoveTo(next);
         OfferedDriverId = driverId;
+        OfferedAt = DateTime.UtcNow;
     }
 
     public void AcceptBy(Guid driverId)
@@ -97,7 +101,11 @@ public class Trip
     private void MoveTo(TripState next)
     {
         Status = next.Status;
-        if (Status != TripStatus.DriverOffered) OfferedDriverId = null;   // hết lời đề xuất
+        if (Status != TripStatus.DriverOffered)   // hết lời đề xuất
+        {
+            OfferedDriverId = null;
+            OfferedAt = null;
+        }
     }
 
     private static string Normalize(string? value, string name)

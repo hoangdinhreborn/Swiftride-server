@@ -1,6 +1,6 @@
 # SwiftRide Backend - Hệ Thống Đặt Xe Công Nghệ Microservices (.NET 10)
 
-Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây dựng theo kiến trúc **Microservices**, **Clean Architecture**, **Domain-Driven Design (DDD)**, **State Pattern (GoF)** và kiến trúc hướng sự kiện (**Event-Driven Architecture**).
+Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây dựng theo kiến trúc **Microservices**, **Clean Architecture**, **Domain-Driven Design (DDD)**, **State Pattern (GoF)**, **Factory Pattern (PaymentMethod)**, **Bounded Retry (PaymentSettler)** và kiến trúc hướng sự kiện (**Event-Driven Architecture**).
 
 ---
 
@@ -26,10 +26,11 @@ Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây 
       |    TripService     | |  MatchingService   | |   PaymentService   |
       |     Port: 5130     | |     Port: 5197     | |     Port: 5273     |
       | - Clean Arch (4L)  | | - Strategy Pricing | | - Double-Entry     |
-      | - State Pattern    | | - Geo-Spatial Match| | - Idempotency Key  |
-      | - Dispatch Retry   | | - Exclude Declined | | - Outbox Consumer  |
-      | - Outbox Pattern   | +--------------------+ +--------------------+
-      +--------------------+           |                      |
+      | - State Pattern    | | - Geo-Spatial Match| | - Payment Factory  |
+      | - Dispatch Retry   | | - Exclude Declined | | - Bounded Retry    |
+      | - Offer Expiry TTL | +--------------------+ | - Idempotency Key  |
+      | - Outbox Pattern   |           |            | - Outbox Consumer  |
+      +--------------------+           |            +--------------------+
            |          \                |                      |
            |           \               |                      |
            v            \              v                      v
@@ -62,9 +63,9 @@ Hệ thống Backend cho nền tảng gọi xe công nghệ **SwiftRide**, xây 
 | Thành phần | Công nghệ | Cổng Host (Docker) | Cổng Local (`dotnet run`) | Mô tả |
 | :--- | :--- | :---: | :---: | :--- |
 | **ApiGateway** | YARP Reverse Proxy | **`5000`** | `5233` | Cổng vào duy nhất của hệ thống, chặn request không hợp lệ tại biên. |
-| **TripService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5130`** | Quản lý vòng đời chuyến đi bằng **State Pattern** & thuật toán điều phối tài xế (retry $\le k$ lần). |
+| **TripService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5130`** | Quản lý vòng đời chuyến đi bằng **State Pattern**, điều phối tài xế (retry $\le k$ lần) và quét hết hạn lời mời (TTL). |
 | **MatchingService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5197`** | Tìm tài xế gần nhất theo tọa độ GPS (loại trừ tài xế đã từ chối) và tính giá động (Surge/Promo Strategy). |
-| **PaymentService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5273`** | Thanh toán chuyến đi, ghi sổ cái kế toán Double-Entry, hỗ trợ Idempotency key. |
+| **PaymentService** | ASP.NET Core Minimal API | `8080` (Internal) | **`5273`** | Thanh toán chuyến đi qua **PaymentMethod Factory**, ghi sổ cái kế toán Double-Entry, **Bounded Retry** với Idempotency key. |
 | **PostgreSQL Trip** | PostgreSQL 16 | **`5432`** | `5432` | Cơ sở dữ liệu riêng của `TripService` (Database: `tripdb`). |
 | **PostgreSQL Payment** | PostgreSQL 16 | **`5433`** | `5433` | Cơ sở dữ liệu riêng của `PaymentService` (Database: `paydb`). |
 | **MongoDB** | MongoDB 7 | **`27017`** | `27017` | Cơ sở dữ liệu tài xế của `MatchingService` (Database: `matchdb`). |
@@ -136,13 +137,13 @@ dotnet ef database update --project src/TripService/TripService.Infrastructure -
 dotnet ef database update --project src/PaymentService/PaymentService.Infrastructure --startup-project src/PaymentService/PaymentService.Api
 ```
 
-### 4. Chạy Kiểm Thử (198 Tests)
+### 4. Chạy Kiểm Thử (235 Tests)
 ```bash
 dotnet test SwiftRide.slnx
 ```
-Kết quả kiểm thử: **198/198 tests PASS 100%**:
-- `TripService.Tests`: **145 tests** (State pattern, Dispatcher retry, Outbox, CQRS Handlers).
-- `PaymentService.Tests`: **33 tests** (Double-entry ledger, Idempotency, Outbox).
+Kết quả kiểm thử: **235/235 tests PASS 100%**:
+- `TripService.Tests`: **152 tests** (State pattern, Dispatcher retry, Offer Expiry Scanner, Outbox, CQRS).
+- `PaymentService.Tests`: **63 tests** (Double-entry ledger, PaymentMethod Factory, Bounded Retry Settler, Idempotency, Outbox).
 - `MatchingService.Tests`: **20 tests** (Strategy pricing, Haversine, Geo-query).
 
 ---
@@ -150,6 +151,7 @@ Kết quả kiểm thử: **198/198 tests PASS 100%**:
 ## 5. Cấu Trúc Nhánh Git (Branching Strategy)
 
 - **`main`**: Nhánh chính tích hợp toàn bộ hệ thống hoàn chỉnh.
+- **`feature/payment-factory-and-offer-expiry`**: Factory Pattern cho PaymentMethod, Bounded Retry cho PaymentSettler, và Offer Expiry Job cho TripService.
 - **`feature/state-pattern-and-dispatch`**: Hiện thực State Pattern cho Trip và thuật toán điều phối ghép tài xế (retry $\le k$ lần).
 - **`feature/shared-auth`**: Đóng gói thư viện dùng chung `BuildingBlocks.Security`.
 - **`feature/payment-service`**: Microservice thanh toán và sổ cái kế toán độc lập.

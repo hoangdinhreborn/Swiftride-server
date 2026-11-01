@@ -5,6 +5,7 @@ using TripService.Api.Endpoints;
 using TripService.Api.ExceptionHandling;
 using TripService.Application;
 using TripService.Application.Common.Interfaces;
+using TripService.Application.Trips;
 using TripService.Infrastructure;
 using TripService.Infrastructure.Persistence;
 
@@ -22,6 +23,8 @@ builder.Services.AddInfrastructure(
 builder.Services.AddSwiftRideAuth(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IAccessTokenProvider, HttpContextAccessTokenProvider>();
+builder.Services.AddSingleton<ServiceTokenIssuer>();
+builder.Services.AddSingleton(builder.Configuration.GetSection("OfferExpiry").Get<OfferExpiryOptions>() ?? new OfferExpiryOptions());
 
 var app = builder.Build();
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))

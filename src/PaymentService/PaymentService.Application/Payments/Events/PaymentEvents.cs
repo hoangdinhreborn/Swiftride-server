@@ -1,6 +1,6 @@
 using PaymentService.Application.Common.Interfaces;
-using PaymentService.Domain.Payments;
 using PaymentService.Application.Common.Telemetry;
+using PaymentService.Domain.Payments;
 
 namespace PaymentService.Application.Payments.Events;
 
@@ -16,7 +16,7 @@ public record PaymentFailed(Guid EventId, Guid PaymentId, Guid TripId, Guid Ride
 
 public static class OutboxExtensions
 {
-    // Ghi sự kiện tương ứng với kết quả của thanh toán. Pending hoặc Refunded thì không phát gì
+    // Ghi sự kiện tương ứng với kết quả. Pending hoặc Refunded thì không phát gì
     public static void EnqueueOutcome(this IOutbox outbox, Payment p)
     {
         switch (p.Status)
@@ -26,8 +26,10 @@ public static class OutboxExtensions
                 outbox.Enqueue(PaymentRoutingKeys.Settled,
                     new PaymentSettled(Guid.NewGuid(), p.Id, p.TripId, p.PayerId, p.Amount, DateTime.UtcNow));
                 break;
+
             case PaymentStatus.Failed:
-                PaymentMetrics.Record("failed");
+            case PaymentStatus.Deferred:   // với Trip, "chờ xử lý" cũng là PaymentPending
+                PaymentMetrics.Record(p.Status == PaymentStatus.Failed ? "failed" : "deferred");
                 outbox.Enqueue(PaymentRoutingKeys.Failed,
                     new PaymentFailed(Guid.NewGuid(), p.Id, p.TripId, p.PayerId, p.Amount,
                         p.FailureReason ?? "Bị từ chối", DateTime.UtcNow));

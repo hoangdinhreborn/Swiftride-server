@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using TripService.Application.Common.Interfaces;
 using TripService.Application.Trips.Interfaces;
 using TripService.Infrastructure.Gateways;
+using TripService.Infrastructure.Jobs;
 using TripService.Infrastructure.Messaging;
 using TripService.Infrastructure.Persistence;
 using TripService.Infrastructure.Persistence.Repositories;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddHostedService<OutboxPublisher>();
         services.AddSingleton(new RabbitMqSettings(rabbitUri));
         services.AddHostedService<PaymentResultConsumer>();
+        services.AddHostedService<OfferExpiryWorker>();
 
         return services;
     }

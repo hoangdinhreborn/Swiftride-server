@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using TripService.Application.Common.Interfaces;
 using TripService.Application.Trips;
 
@@ -19,6 +20,7 @@ public static class DependencyInjection
                 services.AddScoped(i, type);
 
         services.AddScoped<DriverDispatcher>();
+        services.TryAddSingleton(TimeProvider.System);
         return services;
     }
 }

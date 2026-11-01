@@ -19,5 +19,6 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
         b.Property<List<Guid>>("_declined").HasColumnName("DeclinedDriverIds").HasDefaultValueSql("'{}'");
         b.Ignore(x => x.DeclinedDriverIds);
         b.Ignore(x => x.DeclineCount);
+        b.HasIndex(x => x.OfferedAt).HasFilter("\"Status\" = 'DriverOffered'");
     }
 }

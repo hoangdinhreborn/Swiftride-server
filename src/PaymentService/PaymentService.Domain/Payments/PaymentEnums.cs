@@ -1,6 +1,8 @@
 namespace PaymentService.Domain.Payments;
 
-public enum PaymentStatus { Pending, Succeeded, Failed, Refunded }
+// Deferred: cổng thanh toán lỗi tạm thời và đã hết lượt thử.
+// Chưa biết tiền đã trừ hay chưa nên KHÔNG đánh dấu Failed
+public enum PaymentStatus { Pending, Succeeded, Failed, Refunded, Deferred }
 
 public enum LedgerAccount { GatewayClearing, TripRevenue }
 

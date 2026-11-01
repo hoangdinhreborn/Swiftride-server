@@ -135,6 +135,7 @@ services:
       RabbitMq__Uri: amqp://${RABBITMQ_USER:-swiftride}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       Services__Matching__BaseUrl: http://matching:8080
       Database__MigrateOnStartup: "true"
+      OfferExpiry__Ttl: ${OFFER_TTL:-00:00:30}
     depends_on:
       postgres-trip: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -160,6 +161,7 @@ services:
       RabbitMq__Uri: amqp://${RABBITMQ_USER:-swiftride}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       Services__Trip__BaseUrl: http://trip:8080
       AutoPay__Token: ${AUTOPAY_TOKEN:-tok_default}
+      AutoPay__Method: ${AUTOPAY_METHOD:-Card}
       Database__MigrateOnStartup: "true"
     depends_on:
       postgres-payment: { condition: service_healthy }

@@ -80,4 +80,59 @@ public class PaymentTests
         p.MarkSucceeded("ref");
         Assert.Throws<DomainException>(() => p.MarkSucceeded("ref2"));
     }
+
+        [Fact]
+    public void MarkDeferred_giu_chua_ket_thuc_va_khong_ghi_so_cai()
+    {
+        var p = New();
+        p.MarkDeferred("timeout");
+
+        Assert.Equal(PaymentStatus.Deferred, p.Status);
+        Assert.Equal("timeout", p.FailureReason);
+        Assert.Empty(p.Entries);
+    }
+
+    [Fact]
+    public void Deferred_van_thanh_cong_duoc_va_xoa_ly_do_loi()
+    {
+        var p = New();
+        p.MarkDeferred("timeout");
+        p.MarkSucceeded("ref");
+
+        Assert.Equal(PaymentStatus.Succeeded, p.Status);
+        Assert.Null(p.FailureReason);
+        Assert.Equal(2, p.Entries.Count);
+    }
+
+    [Fact]
+    public void Deferred_khong_hoan_tien_duoc()
+    {
+        var p = New();
+        p.MarkDeferred("timeout");
+        Assert.Throws<DomainException>(() => p.Refund());
+    }
+
+    [Fact]
+    public void RecordAttempt_dem_so_lan_thu_va_khong_cho_khi_da_co_ket_qua_cuoi()
+    {
+        var p = New();
+        p.RecordAttempt();
+        p.RecordAttempt();
+        Assert.Equal(2, p.Attempts);
+
+        p.MarkFailed("x");
+        Assert.Throws<DomainException>(() => p.RecordAttempt());
+    }
+
+    [Fact]
+    public void UseMethod_doi_phuong_thuc_khi_chua_co_ket_qua_cuoi()
+    {
+        var p = New();
+        p.MarkDeferred("timeout");
+        p.UseMethod(PaymentMethodKind.Wallet);
+        Assert.Equal(PaymentMethodKind.Wallet, p.Method);
+
+        p.MarkSucceeded("ref");
+        Assert.Throws<DomainException>(() => p.UseMethod(PaymentMethodKind.Card));
+    }
 }

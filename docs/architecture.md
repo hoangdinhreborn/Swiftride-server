@@ -18,7 +18,7 @@ swiftride-server/
 │
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                                   # GitHub Actions CI: Build, Test (198 tests) & Docker E2E
+│       └── ci.yml                                   # GitHub Actions CI: Build, Test (235 tests) & Docker E2E
 │
 ├── docker/
 │   └── Dockerfile                                   # Multi-stage build tối ưu cho toàn bộ các service
@@ -56,12 +56,12 @@ swiftride-server/
 │   ├── TripService/                                 # [MICROSERVICE 1: QUẢN LÝ CHUYẾN ĐI & ĐIỀU PHỐI]
 │   │   │                                            # Cơ sở dữ liệu: PostgreSQL riêng (tripdb)
 │   │   ├── TripService.Api/                         # [Presentation Layer]: Minimal API
-│   │   │   ├── Auth/                                # HttpContextAccessTokenProvider
+│   │   │   ├── Auth/                                # HttpContextAccessTokenProvider, ServiceTokenIssuer
 │   │   │   ├── Endpoints/TripEndpoints.cs           # POST /trips, confirm, cancel, driver-accept, driver-decline, pickup, dropoff, GET /offers
 │   │   │   ├── ExceptionHandling/                   # GlobalExceptionHandler chuẩn ProblemDetails
 │   │   │   ├── Properties/launchSettings.json       # Port: 5130 (Local)
 │   │   │   ├── appsettings.json
-│   │   │   ├── Program.cs                           # Composition Root: DI, Telemetry, Outbox
+│   │   │   ├── Program.cs                           # Composition Root: DI, Telemetry, Outbox, OfferScanner
 │   │   │   └── TripService.Api.csproj
 │   │   │
 │   │   ├── TripService.Application/                 # [Application Layer]: Use Cases & CQRS Handlers
@@ -76,6 +76,7 @@ swiftride-server/
 │   │   │   │   │   ├── CancelTrip/                  # CancelTripCommand + Handler (Rider hủy/từ chối giá)
 │   │   │   │   │   ├── ConfirmTrip/                 # ConfirmTripCommand + Handler (Rider đồng ý giá -> Dispatch)
 │   │   │   │   │   ├── DeclineTrip/                 # DeclineTripCommand + Handler (Driver từ chối -> Retry ≤ k lần)
+│   │   │   │   │   ├── ExpireOffer/                 # ExpireOfferCommand + Handler (Hết hạn offer -> Tự động chuyển TX tiếp theo)
 │   │   │   │   │   ├── DropOffTrip/                 # DropOffTripHandler (Ghi Outbox Event)
 │   │   │   │   │   ├── PickUpTrip/                  # PickUpTripCommand + Handler
 │   │   │   │   │   └── RequestTrip/                 # RequestTripHandler (Báo giá cước)
@@ -85,7 +86,8 @@ swiftride-server/
 │   │   │   │   ├── Queries/
 │   │   │   │   │   ├── GetTrip/                     # GetTripQuery + Handler
 │   │   │   │   │   └── GetMyOffers/                 # GetMyOffersQuery + Handler (Tài xế lấy cuốc đang đề xuất)
-│   │   │   │   └── DriverDispatcher.cs              # Bộ điều phối tài xế (quét matching, loại trừ tx đã từ chối)
+│   │   │   │   ├── DriverDispatcher.cs              # Bộ điều phối tài xế (quét matching, loại trừ tx đã từ chối)
+│   │   │   │   └── OfferExpiryOptions.cs            # Cấu hình thời gian chờ tài xế nhận cuốc (TTL)
 │   │   │   ├── DependencyInjection.cs
 │   │   │   └── TripService.Application.csproj
 │   │   │
@@ -112,12 +114,13 @@ swiftride-server/
 │   │       ├── Gateways/
 │   │       │   ├── MatchingPricingGateway.cs        # HTTP Client gọi MatchingService lấy báo giá
 │   │       │   └── MatchingDriverGateway.cs         # HTTP Client gọi MatchingService tìm tài xế gần
+│   │       ├── Jobs/OfferExpiryScanner.cs           # Background Service quét các offer hết hạn TTL
 │   │       ├── Messaging/                           # RabbitMqPublisher, OutboxPublisher, PaymentResultConsumer
 │   │       ├── Persistence/
 │   │       │   ├── Configurations/                  # TripConfiguration (xmin Concurrency Token)
-│   │       │   ├── Migrations/                      # EF Core Code-First (Trips, OutboxMessages, DispatchFlow)
+│   │       │   ├── Migrations/                      # EF Core Code-First (Trips, OutboxMessages, DispatchFlow, OfferExpiry)
 │   │       │   ├── Outbox/OutboxMessage.cs          # Thực thể lưu sự kiện Outbox trong DB
-│   │       │   ├── Repositories/TripRepository.cs   # Truy vấn trip và các cuốc đang offer
+│   │       │   ├── Repositories/TripRepository.cs   # Truy vấn trip, active offers, expired offers
 │   │       │   ├── MigrationExtensions.cs           # Tự động migrate khi khởi động
 │   │       │   └── TripDbContext.cs                 # DbContext & UnitOfWork & IOutbox
 │   │       ├── DependencyInjection.cs
@@ -171,21 +174,28 @@ swiftride-server/
 │       │   ├── Program.cs
 │       │   └── PaymentService.Api.csproj
 │       │
-│       ├── PaymentService.Application/              # [Application Layer]: Sổ cái & Xử lý Giao dịch
-│       │   ├── Common/Exceptions/, Interfaces/
+│       ├── PaymentService.Application/              # [Application Layer]: Sổ cái, Bounded Retry & Idempotency
+│       │   ├── Common/Exceptions/                   # PaymentProviderUnavailableException...
+│       │   ├── Common/Interfaces/                   # IPaymentProvider, IPaymentRepository...
 │       │   ├── Payments/
 │       │   │   ├── Commands/
-│       │   │   │   ├── CreatePayment/               # Xử lý Idempotency, gọi cổng thanh toán, ghi sổ cái
-│       │   │   │   ├── ProcessRideCompleted/        # Xử lý sự kiện từ RabbitMQ Consumer
+│       │   │   │   ├── CreatePayment/               # Xử lý Idempotency, gọi PaymentSettler, ghi sổ cái
+│       │   │   │   ├── ProcessRideCompleted/        # Xử lý sự kiện từ RabbitMQ Consumer (AutoPay)
 │       │   │   │   └── RefundPayment/               # Hoàn tiền, đảo bút toán sổ cái
 │       │   │   ├── Dtos/PaymentDto.cs, PaymentMappings.cs
-│       │   │   └── Queries/GetPayment/
+│       │   │   ├── Events/PaymentEvents.cs
+│       │   │   ├── Queries/GetPayment/
+│       │   │   ├── PaymentSettler.cs                # Bounded Retry với Idempotency Key, chuyển PaymentPending nếu lỗi tạm thời
+│       │   │   ├── PaymentRetryOptions.cs           # Cấu hình retry: maxAttempts, delayMs
+│       │   │   └── AutoPayOptions.cs
 │       │   ├── DependencyInjection.cs
 │       │   └── PaymentService.Application.csproj
 │       │
-│       ├── PaymentService.Domain/                   # [Domain Layer]: Double-Entry Ledger
+│       ├── PaymentService.Domain/                   # [Domain Layer]: Double-Entry Ledger & Factory Pattern
 │       │   ├── Payments/
-│       │   │   ├── Payment.cs                       # Thực thể thanh toán (Trạng thái Pending, Succeeded, Failed)
+│       │   │   ├── Payment.cs                       # Thực thể thanh toán (Trạng thái Pending, Succeeded, Failed, PaymentPending)
+│       │   │   ├── PaymentMethod.cs                 # [FACTORY PATTERN]: Lớp cơ sở PaymentMethod
+│       │   │   ├── PaymentMethodFactory.cs          # Tạo đối tượng CardPaymentMethod (tokenized) / WalletPaymentMethod
 │       │   │   ├── LedgerEntry.cs                   # Bút toán Nợ/Có (Debit/Credit)
 │       │   │   └── PaymentEnums.cs                  # LedgerAccount, EntryDirection, PaymentStatus
 │       │   └── PaymentService.Domain.csproj
@@ -195,7 +205,7 @@ swiftride-server/
 │           ├── Messaging/                           # RabbitMqPublisher, OutboxPublisher, RideCompletedConsumer
 │           ├── Persistence/
 │           │   ├── Configurations/PaymentConfiguration.cs
-│           │   ├── Migrations/                      # EF Core Code-First (Payments, LedgerEntries, Outbox)
+│           │   ├── Migrations/                      # EF Core Code-First (Payments, LedgerEntries, Outbox, PaymentMethod, PaymentAttempts)
 │           │   ├── Repositories/PaymentRepository.cs
 │           │   └── PaymentDbContext.cs
 │           ├── Providers/FakePaymentProvider.cs     # Mock cổng thanh toán thẻ/ví điện tử
@@ -203,9 +213,9 @@ swiftride-server/
 │           └── PaymentService.Infrastructure.csproj
 │
 └── tests/
-    ├── TripService.Tests/                           # 145 tests: State Pattern, Dispatcher, Outbox, CQRS
+    ├── TripService.Tests/                           # 152 tests: State Pattern, Dispatcher, Offer Expiry, Outbox, CQRS
     ├── MatchingService.Tests/                       # 20 tests: Strategy Pricing, Haversine, Architecture
-    └── PaymentService.Tests/                        # 33 tests: Double-Entry Ledger, Idempotency, Outbox
+    └── PaymentService.Tests/                        # 63 tests: Double-Entry Ledger, Factory Pattern, Settler Retry, Idempotency
 ```
 
 ---
@@ -225,9 +235,9 @@ Hệ thống tuân thủ triệt để nguyên tắc **Database-per-Service** v�
 ## 3. Các Mẫu Thiết Kế (Design Patterns) Trọng Tâm
 
 ### 3.1. State Pattern (GoF Behavioral Pattern)
-- Thay vì dùng câu lệnh `switch(status)` rải rác làm mã nguồn phân mảnh và dễ lỗi, toàn bộ vòng đời chuyến đi được đóng gói theo **State Pattern**:
+- Toàn bộ vòng đời chuyến đi được mô hình hóa theo **State Pattern**:
   - `TripState` là lớp cơ sở trừu tượng, mặc định từ chối (`throw DomainException`) mọi thao tác không hợp lệ.
-  - Mỗi trạng thái cụ thể (`RequestedState`, `DriverOfferedState`, `DriverAcceptedState`, `PickedUpState`, `DroppedOffState`, `PaidState`, `CancelledState`, `FailedState`) chỉ ghi đè đúng những hành động mà trạng thái đó cho phép.
+  - Các trạng thái cụ thể (`RequestedState`, `SearchingState`, `DriverOfferedState`, `DriverAcceptedState`, `PickedUpState`, `DroppedOffState`, `PaymentPendingState`, `PaidState`, `CancelledState`, `FailedState`) chỉ ghi đè đúng những hành động mà trạng thái đó cho phép.
   - Entity `Trip` ủy quyền (delegate) việc kiểm tra và chuyển tiếp trạng thái cho đối tượng `State`.
 
 ### 3.2. Thuật Toán Điều Phối & Ghép Tài Xế (Driver Dispatcher Flowchart)
@@ -235,35 +245,42 @@ Tuân thủ chính xác lưu đồ Mục 4 của tài liệu đặc tả:
 1. **Rider Đặt xe (`Requested`)**: Hệ thống tính toán báo giá ước tính.
 2. **Rider Xác nhận giá (`POST /trips/{id}/confirm`)**:
    - Nếu Rider đồng ý: Chuyển sang `Searching`. `DriverDispatcher` gọi `MatchingService` (`POST /match`) để tìm danh sách tài xế gần nhất trong bán kính 5km chưa từ chối.
-   - Tìm thấy tài xế: Gán `OfferedDriverId` và chuyển sang `DriverOffered`.
+   - Tìm thấy tài xế: Gán `OfferedDriverId`, `OfferedAt = DateTime.UtcNow` và chuyển sang `DriverOffered`.
    - Không tìm thấy tài xế: Chuyển sang `Failed`.
-3. **Rider Từ chối giá (`POST /trips/{id}/cancel`)**: Chuyến đi chuyển thẳng sang `Cancelled` (Kết thúc: Hủy chuyến).
+3. **Rider Từ chối giá (`POST /trips/{id}/cancel`)**: Chuyển sang `Cancelled` (Kết thúc: Hủy chuyến).
 4. **Tài xế nhận được đề xuất (`GET /trips/offers`)**:
    - **Tài xế đồng ý (`POST /trips/{id}/driver-accept`)**: Chuyển sang `DriverAccepted`. Bắt đầu đón khách.
    - **Tài xế từ chối (`POST /trips/{id}/driver-decline`)**:
      - Ghi nhận tài xế vào danh sách `_declined`.
      - Nếu số lần từ chối $\le k$ ($k = 3$): Tự động quay lại tìm tài xế kế tiếp gần nhất chưa từ chối.
      - Nếu số lần từ chối $> k$: Chuyển sang trạng thái `Failed` (Kết thúc: Không thành công).
+5. **Hết hạn đề xuất (Offer Expiry Background Job)**:
+   - Worker `OfferExpiryScanner` chạy ngầm định kỳ quét các cuốc xe có `OfferedAt` vượt quá TTL (`OFFER_TTL`, mặc định 10s - 30s) mà tài xế không phản hồi.
+   - Tự động gọi `ExpireOfferHandler` để coi như tài xế đã từ chối và tự động chuyển cuốc xe cho tài xế tiếp theo.
 
-### 3.3. Transactional Outbox Pattern & Event Saga (`TripService` $\leftrightarrow$ `PaymentService`)
+### 3.3. Factory Pattern Cho Phương Thức Thanh Toán (`PaymentService`)
+- Lớp cơ sở trừu tượng `PaymentMethod` được khởi tạo thông qua **`PaymentMethodFactory.Create(type, token)`**:
+  - `CardPaymentMethod`: Thanh toán thẻ tín dụng/ghi nợ (tuân thủ bảo mật: chỉ lưu token do cổng thanh toán cấp, không lưu số thẻ/CVV).
+  - `WalletPaymentMethod`: Thanh toán ví điện tử (MoMo, ZaloPay, ShopeePay).
+
+### 3.4. Bounded Retry & Idempotency (`PaymentSettler`)
+- Khi thanh toán gặp sự cố tạm thời (`PaymentProviderUnavailableException`):
+  - Hệ thống thực hiện retry có giới hạn (mặc định 3 lần với backoff) với cùng một `Idempotency-Key`.
+  - Nếu sau các lần thử vẫn lỗi tạm thời: Chuyến đi được chuyển sang trạng thái **`PaymentPending`** (chờ xử lý) thay vì trừ tiền lặp hoặc báo thành công sai, đúng theo lưu đồ Mục 4 & Mục 9.2 đặc tả.
+  - Khi thành công: Chuyển sang `Succeeded` và ghi nhận 2 bút toán Nợ/Có vào sổ cái.
+
+### 3.5. Transactional Outbox Pattern & Event Saga (`TripService` $\leftrightarrow$ `PaymentService`)
 - Khi tài xế trả khách (`POST /trips/{id}/dropoff`), `TripService` thực hiện trong **cùng một PostgreSQL transaction**:
   1. Đổi trạng thái chuyến đi sang `DroppedOff`.
   2. Ghi bản ghi sự kiện `RideCompleted` vào bảng `OutboxMessages` (kèm W3C `traceparent`).
 - Background worker `OutboxPublisher` định kỳ quét bảng outbox và publish sự kiện lên **RabbitMQ** (Exchange: `swiftride.events`).
 - `PaymentService` (`RideCompletedConsumer`) nhận sự kiện để trừ tiền. Sau khi thanh toán thành công, kết quả được bắn ngược về RabbitMQ để `PaymentResultConsumer` trong `TripService` cập nhật trạng thái chuyến đi sang `Paid`.
 
-### 3.4. Sổ Cái Kế Toán Double-Entry & Idempotency (`PaymentService`)
-- Mỗi giao dịch thành công tự động sinh ra 2 bút toán cân bằng:
-  - **Ghi Nợ (Debit)**: Tài khoản `GatewayClearing` (Cổng thanh toán đang giữ tiền).
-  - **Ghi Có (Credit)**: Tài khoản `TripRevenue` (Doanh thu chuyến đi).
-- Khi có yêu cầu Hoàn tiền (`Refund`), hệ thống thực hiện đảo bút toán tương ứng.
-- **Idempotency Key**: Bắt buộc client gửi header `Idempotency-Key`. Nếu cùng một key được gửi lại, hệ thống trả về ngay kết quả trước đó mà không gọi lại cổng thanh toán.
-
-### 3.5. Strategy Pattern (`MatchingService`)
+### 3.6. Strategy Pattern (`MatchingService`)
 - Hợp đồng `IPricingStrategy` được triển khai bởi `StandardPricing`, `SurgePricing` (nhân hệ số cao điểm), và `PromoPricing` (Decorator giảm giá khuyến mãi).
 - `PricingStrategyFactory` tự động chọn strategy dựa trên mật độ tài xế sẵn sàng trong bán kính 3km quanh điểm đón.
 
-### 3.6. API Gateway & Edge Security (`ApiGateway`)
+### 3.7. API Gateway & Edge Security (`ApiGateway`)
 - Dùng Microsoft YARP (Yet Another Reverse Proxy).
 - Xác thực tập trung JWT Bearer thông qua `BuildingBlocks.Security` ngay tại cửa ngõ. Request không có token hợp lệ bị chặn ngay lập tức (HTTP 401).
 - Rate Limiting 60 request/phút cho từng Client (dựa trên JWT `sub` hoặc IP).

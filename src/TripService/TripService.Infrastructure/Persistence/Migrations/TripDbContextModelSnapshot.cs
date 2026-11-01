@@ -46,6 +46,9 @@ namespace TripService.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("OfferedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("OfferedDriverId")
                         .HasColumnType("uuid");
 
@@ -86,6 +89,9 @@ namespace TripService.Infrastructure.Persistence.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OfferedAt")
+                        .HasFilter("\"Status\" = 'DriverOffered'");
 
                     b.ToTable("Trips");
                 });

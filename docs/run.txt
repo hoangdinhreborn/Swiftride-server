@@ -35,5 +35,5 @@ dotnet ef database update --project src/PaymentService/PaymentService.Infrastruc
 # - Terminal 3 (PaymentService): dotnet run --project src/PaymentService/PaymentService.Api
 # - Terminal 4 (ApiGateway): dotnet run --project src/ApiGateway
 
-# 4. Chạy toàn bộ 198 tests kiểm thử:
+# 4. Chạy toàn bộ 235 tests kiểm thử:
 dotnet test SwiftRide.slnx

@@ -7,4 +7,5 @@ public interface ITripRepository
     Task<Trip?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task AddAsync(Trip trip, CancellationToken ct = default);
     Task<IReadOnlyList<Trip>> GetOffersForDriverAsync(Guid driverId, CancellationToken ct = default);
+        Task<IReadOnlyList<Guid>> GetExpiredOfferIdsAsync(DateTime olderThanUtc, int limit, CancellationToken ct = default);
 }

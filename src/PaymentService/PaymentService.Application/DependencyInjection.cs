@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using PaymentService.Application.Common.Interfaces;
+using PaymentService.Application.Payments;
 
 namespace PaymentService.Application;
 
@@ -16,6 +17,7 @@ public static class DependencyInjection
             foreach (var i in type.GetInterfaces()
                          .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerType))
                 services.AddScoped(i, type);
+        services.AddScoped<PaymentSettler>();
 
         return services;
     }

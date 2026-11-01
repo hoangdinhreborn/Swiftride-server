@@ -8,7 +8,7 @@ using PaymentService.Application.Payments.Queries.GetPayment;
 
 namespace PaymentService.Api.Endpoints;
 
-public record CreatePaymentRequest(Guid? TripId, string? PaymentToken);
+public record CreatePaymentRequest(Guid? TripId, string? PaymentToken, string? Method = null);
 
 public static class PaymentEndpoints
 {
@@ -22,9 +22,10 @@ public static class PaymentEndpoints
                 IHandler<CreatePaymentCommand, CreatePaymentResult> h,
                 CancellationToken ct) =>
             {
-                var r = await h.HandleAsync(new CreatePaymentCommand(req.TripId, req.PaymentToken, idempotencyKey), ct);
-
-                if (r.Payment.Status == "Failed") return Results.Json(r.Payment, statusCode: 402);   // thẻ bị từ chối
+                var r = await h.HandleAsync(
+                                    new CreatePaymentCommand(req.TripId, req.PaymentToken, idempotencyKey, req.Method), ct);
+                if (r.Payment.Status == "Failed") return Results.Json(r.Payment, statusCode: 402);    // thẻ bị từ chối
+                if (r.Payment.Status == "Deferred") return Results.Json(r.Payment, statusCode: 202);  // đang chờ xử lý, gửi lại sau
                 if (r.IsReplay) return Results.Ok(r.Payment);
                 return Results.Created($"/payments/{r.Payment.Id}", r.Payment);
             })

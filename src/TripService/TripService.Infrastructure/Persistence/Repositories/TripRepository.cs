@@ -17,4 +17,11 @@ public class TripRepository(TripDbContext db) : ITripRepository
         .Where(t => t.OfferedDriverId == driverId && t.Status == TripStatus.DriverOffered)
         .OrderBy(t => t.CreatedAt)
         .ToListAsync(ct);
+    public async Task<IReadOnlyList<Guid>> GetExpiredOfferIdsAsync(DateTime olderThanUtc, int limit, CancellationToken ct = default)
+    => await db.Trips
+        .Where(t => t.Status == TripStatus.DriverOffered && (t.OfferedAt ?? t.CreatedAt) < olderThanUtc)
+        .OrderBy(t => t.CreatedAt)
+        .Select(t => t.Id)
+        .Take(limit)
+        .ToListAsync(ct);
 }

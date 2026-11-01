@@ -12,6 +12,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.Property(x => x.Id).ValueGeneratedNever();
         b.Property(x => x.Amount).HasPrecision(18, 2);
         b.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.Method).HasConversion<string>().HasMaxLength(20).HasDefaultValue(PaymentMethodKind.Card);
         b.Property(x => x.IdempotencyKey).HasMaxLength(Payment.MaxKeyLength).IsRequired();
         b.Property(x => x.ProviderReference).HasMaxLength(100);
         b.Property(x => x.FailureReason).HasMaxLength(300);

@@ -17,6 +17,7 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddApplication();
 builder.Services.AddSingleton(builder.Configuration.GetSection("AutoPay").Get<AutoPayOptions>() ?? new AutoPayOptions());
+builder.Services.AddSingleton(builder.Configuration.GetSection("PaymentRetry").Get<PaymentRetryOptions>() ?? new PaymentRetryOptions());
 builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("PayDb")!,
     builder.Configuration["Services:Trip:BaseUrl"]!,
