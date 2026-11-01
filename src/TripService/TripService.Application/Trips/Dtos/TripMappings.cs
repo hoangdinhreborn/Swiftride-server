@@ -5,6 +5,8 @@ namespace TripService.Application.Trips.Dtos;
 public static class TripMappings
 {
     public static TripDto ToDto(this Trip t)
-        => new(t.Id, t.RiderId, t.DriverId, t.Pickup, t.Destination,
+        => new(t.Id, t.RiderId, t.DriverId,
+               t.Pickup, t.PickupLat, t.PickupLng,
+               t.Destination, t.DestinationLat, t.DestinationLng,
                t.QuotedFare, t.Status.ToString(), t.CreatedAt);
 }
