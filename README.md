@@ -137,21 +137,22 @@ dotnet ef database update --project src/TripService/TripService.Infrastructure -
 dotnet ef database update --project src/PaymentService/PaymentService.Infrastructure --startup-project src/PaymentService/PaymentService.Api
 ```
 
-### 4. Chạy Kiểm Thử (270 Tests)
+### 4. Chạy Kiểm Thử (323 Tests)
 ```bash
 dotnet test SwiftRide.slnx
 ```
-Kết quả kiểm thử: **270/270 tests PASS 100%**:
-- `TripService.Tests`: **161 tests** (State pattern, Dispatcher retry, Offer Expiry Scanner, Outbox, SAGA PaymentRejection).
-- `PaymentService.Tests`: **72 tests** (Double-entry ledger, PaymentMethod Factory, Bounded Retry Settler, Idempotency, SAGA Compensation).
+Kết quả kiểm thử: **323/323 tests PASS 100%**:
+- `TripService.Tests`: **185 tests** (State pattern 11 trạng thái với EnRoute, Dispatcher retry, Offer Expiry Scanner, Outbox, TripAccepted, SAGA PaymentRejection).
+- `PaymentService.Tests`: **76 tests** (Double-entry ledger, PaymentMethod Factory, Bounded Retry Settler, Idempotency, SAGA Compensation, GetPaymentByTrip).
+- `MatchingService.Tests`: **45 tests** (Strategy pricing contracts, Haversine, Geo-query, Live Driver Location).
 - `BuildingBlocks.Resilience.Tests`: **17 tests** (Polly retry, Exponential backoff, Circuit Breaker).
-- `MatchingService.Tests`: **20 tests** (Strategy pricing, Haversine, Geo-query, Live Driver Location).
 
 ---
 
 ## 5. Cấu Trúc Nhánh Git (Branching Strategy)
 
 - **`main`**: Nhánh chính tích hợp toàn bộ hệ thống hoàn chỉnh.
+- **`feature/api-gateway-aggregation-and-enroute`**: API Gateway Aggregation pattern (`GET /aggregate/trips/{id}`), trạng thái `EnRoute` ("tài xế đang đến đón") trong State Pattern, sự kiện Outbox `TripAccepted`, và truy vấn `GetPaymentByTrip`.
 - **`feature/resilience-and-saga-compensation`**: Thư viện `BuildingBlocks.Resilience` (Polly retry, Circuit Breaker) và mẫu thiết kế SAGA Compensation (hoàn tiền và đảo bút toán tự động khi Trip từ chối thanh toán).
 - **`feature/payment-factory-and-offer-expiry`**: Factory Pattern cho PaymentMethod, Bounded Retry cho PaymentSettler, và Offer Expiry Job cho TripService.
 - **`feature/state-pattern-and-dispatch`**: Hiện thực State Pattern cho Trip và thuật toán điều phối ghép tài xế (retry $\le k$ lần).

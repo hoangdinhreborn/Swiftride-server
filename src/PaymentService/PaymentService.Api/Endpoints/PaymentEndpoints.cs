@@ -5,6 +5,7 @@ using PaymentService.Application.Payments.Commands.CreatePayment;
 using PaymentService.Application.Payments.Commands.RefundPayment;
 using PaymentService.Application.Payments.Dtos;
 using PaymentService.Application.Payments.Queries.GetPayment;
+using PaymentService.Application.Payments.Queries.GetPaymentByTrip;
 
 namespace PaymentService.Api.Endpoints;
 
@@ -38,6 +39,10 @@ public static class PaymentEndpoints
         g.MapPost("/{id:guid}/refund", async (Guid id, IHandler<RefundPaymentCommand, PaymentDto> h, CancellationToken ct) =>
                 Results.Ok(await h.HandleAsync(new RefundPaymentCommand(id), ct)))
             .RequireAuthorization(p => p.RequireRole(Roles.Admin));
+
+        g.MapGet("/by-trip/{tripId:guid}", async (Guid tripId, IHandler<GetPaymentByTripQuery, PaymentDto> h, CancellationToken ct) =>
+        Results.Ok(await h.HandleAsync(new GetPaymentByTripQuery(tripId), ct)))
+    .RequireAuthorization(Policies.AnyRole);
 
         return app;
     }

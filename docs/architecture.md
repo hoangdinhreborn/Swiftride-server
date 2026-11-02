@@ -35,9 +35,11 @@ swiftride-server/
 │   │
 │   ├── ApiGateway/                                  # [EDGE SERVICE: CỔNG API GATEWAY (YARP)]
 │   │   │                                            # Port: 5000 (Docker) / 5233 (Local)
+│   │   ├── Aggregation/                             # [API GATEWAY AGGREGATION PATTERN]: Ghép dữ liệu nhiều service
+│   │   │   └── AggregationEndpoints.cs              # GET /aggregate/trips/{id} (Gọi song song Trip + Payment)
 │   │   ├── appsettings.Development.json
 │   │   ├── appsettings.json                         # Định tuyến ReverseProxy, Rate Limiting & Clusters
-│   │   ├── Program.cs                               # Composition Root: YARP, Edge Auth, RateLimiter
+│   │   ├── Program.cs                               # Composition Root: YARP, Edge Auth, RateLimiter, Aggregator
 │   │   └── ApiGateway.csproj
 │   │
 │   ├── BuildingBlocks/                              # [THƯ VIỆN HẠ TẦNG DÙNG CHUNG]
@@ -76,6 +78,7 @@ swiftride-server/
 │   │   │   ├── Trips/
 │   │   │   │   ├── Commands/
 │   │   │   │   │   ├── AcceptTrip/                  # AcceptTripCommand + Handler
+│   │   │   │   │   ├── StartEnRoute/                # StartEnRouteCommand + Handler (Tài xế báo đang đến điểm đón)
 │   │   │   │   │   ├── ApplyPaymentResult/          # ApplyPaymentResultCommand (Consumer cập nhật Paid)
 │   │   │   │   │   ├── CancelTrip/                  # CancelTripCommand + Handler (Rider hủy/từ chối giá)
 │   │   │   │   │   ├── ConfirmTrip/                 # ConfirmTripCommand + Handler (Rider đồng ý giá -> Dispatch)
@@ -86,6 +89,7 @@ swiftride-server/
 │   │   │   │   │   └── RequestTrip/                 # RequestTripHandler (Báo giá cước)
 │   │   │   │   ├── Dtos/TripDto.cs, TripMappings.cs
 │   │   │   │   ├── Events/
+│   │   │   │   │   ├── TripAccepted.cs              # Domain Event phát đi khi tài xế nhận cuốc (Outbox Saga)
 │   │   │   │   │   ├── RideCompleted.cs             # Domain Event phát đi khi trả khách (Outbox Saga)
 │   │   │   │   │   └── PaymentRejected.cs           # Event phát đi khi Trip từ chối thanh toán (Saga bồi thường)
 │   │   │   │   ├── Interfaces/ITripRepository.cs
@@ -106,6 +110,7 @@ swiftride-server/
 │   │   │   │   │   ├── SearchingState.cs            # Đang tìm tài xế (in-memory)
 │   │   │   │   │   ├── DriverOfferedState.cs        # Đã đề xuất cho 1 tài xế, chờ accept/decline
 │   │   │   │   │   ├── DriverAcceptedState.cs       # Tài xế đã nhận
+│   │   │   │   │   ├── EnRouteState.cs              # Tài xế đang đến điểm đón
 │   │   │   │   │   ├── PickedUpState.cs             # Đã đón khách, đang di chuyển
 │   │   │   │   │   ├── DroppedOffState.cs           # Đã trả khách, chờ thanh toán
 │   │   │   │   │   ├── PaymentPendingState.cs       # Đang xử lý trừ tiền
@@ -113,7 +118,7 @@ swiftride-server/
 │   │   │   │   │   ├── CancelledState.cs            # Kết thúc: Rider từ chối hoặc hủy
 │   │   │   │   │   └── FailedState.cs               # Kết thúc không thành công: Từ chối > k lần
 │   │   │   │   ├── Trip.cs                          # Aggregate Root: Chứa danh sách _declined & State
-│   │   │   │   └── TripStatus.cs                    # Enum 10 trạng thái
+│   │   │   │   └── TripStatus.cs                    # Enum 11 trạng thái
 │   │   │   └── TripService.Domain.csproj
 │   │   │
 │   │   └── TripService.Infrastructure/              # [Infrastructure Layer]: Persistence & Messaging
@@ -191,7 +196,9 @@ swiftride-server/
 │       │   │   │   └── RefundPayment/               # Hoàn tiền thủ công, đảo bút toán sổ cái
 │       │   │   ├── Dtos/PaymentDto.cs, PaymentMappings.cs
 │       │   │   ├── Events/PaymentEvents.cs
-│       │   │   ├── Queries/GetPayment/
+│       │   │   ├── Queries/
+│       │   │   │   ├── GetPayment/                  # GetPaymentQuery + Handler
+│       │   │   │   └── GetPaymentByTrip/            # GetPaymentByTripQuery + Handler (Tra cứu thanh toán theo mã chuyến)
 │       │   │   ├── PaymentRefunder.cs               # Logic hoàn tiền qua cổng và đảo bút toán sổ cái kép
 │       │   │   ├── PaymentSettler.cs                # Bounded Retry với Idempotency Key, chuyển PaymentPending nếu lỗi tạm thời
 │       │   │   ├── PaymentRetryOptions.cs           # Cấu hình retry: maxAttempts, delayMs
@@ -221,10 +228,10 @@ swiftride-server/
 │           └── PaymentService.Infrastructure.csproj
 │
 └── tests/
-    ├── TripService.Tests/                           # 161 tests: State Pattern, Dispatcher, Offer Expiry, Outbox, Saga PaymentRejected
-    ├── PaymentService.Tests/                        # 72 tests: Double-Entry Ledger, Factory Pattern, Settler Retry, SAGA Compensation
-    ├── BuildingBlocks.Resilience.Tests/             # 17 tests: Polly Retry, Jitter, Circuit Breaker
-    └── MatchingService.Tests/                       # 20 tests: Strategy Pricing, Haversine, Driver Location Query
+    ├── TripService.Tests/                           # 185 tests: State Pattern (11 states, EnRoute), Dispatcher, Outbox, Saga PaymentRejected
+    ├── PaymentService.Tests/                        # 76 tests: Double-Entry Ledger, Factory Pattern, Settler Retry, SAGA Compensation, GetPaymentByTrip
+    ├── MatchingService.Tests/                       # 45 tests: Strategy Pricing Contracts, Haversine, Driver Location Query
+    └── BuildingBlocks.Resilience.Tests/             # 17 tests: Polly Retry, Jitter, Circuit Breaker
 ```
 
 ---
@@ -246,7 +253,7 @@ Hệ thống tuân thủ triệt để nguyên tắc **Database-per-Service** v�
 ### 3.1. State Pattern (GoF Behavioral Pattern)
 - Toàn bộ vòng đời chuyến đi được mô hình hóa theo **State Pattern**:
   - `TripState` là lớp cơ sở trừu tượng, mặc định từ chối (`throw DomainException`) mọi thao tác không hợp lệ.
-  - Các trạng thái cụ thể (`RequestedState`, `SearchingState`, `DriverOfferedState`, `DriverAcceptedState`, `PickedUpState`, `DroppedOffState`, `PaymentPendingState`, `PaidState`, `CancelledState`, `FailedState`) chỉ ghi đè đúng những hành động mà trạng thái đó cho phép.
+  - Các trạng thái cụ thể (`RequestedState`, `SearchingState`, `DriverOfferedState`, `DriverAcceptedState`, `EnRouteState`, `PickedUpState`, `DroppedOffState`, `PaymentPendingState`, `PaidState`, `CancelledState`, `FailedState`) chỉ ghi đè đúng những hành động mà trạng thái đó cho phép.
   - Entity `Trip` ủy quyền (delegate) việc kiểm tra và chuyển tiếp trạng thái cho đối tượng `State`.
 
 ### 3.2. Thuật Toán Điều Phối & Ghép Tài Xế (Driver Dispatcher Flowchart)
@@ -258,7 +265,9 @@ Tuân thủ chính xác lưu đồ Mục 4 của tài liệu đặc tả:
    - Không tìm thấy tài xế: Chuyển sang `Failed`.
 3. **Rider Từ chối giá (`POST /trips/{id}/cancel`)**: Chuyển sang `Cancelled` (Kết thúc: Hủy chuyến).
 4. **Tài xế nhận được đề xuất (`GET /trips/offers`)**:
-   - **Tài xế đồng ý (`POST /trips/{id}/driver-accept`)**: Chuyển sang `DriverAccepted`. Bắt đầu đón khách.
+   - **Tài xế đồng ý (`POST /trips/{id}/driver-accept`)**: Chuyển sang `DriverAccepted`. Ghi nhận sự kiện `TripAccepted` vào Outbox.
+   - **Tài xế báo đang đến điểm đón (`POST /trips/{id}/en-route`)**: Chuyển sang `EnRoute` (Bảo đảm thứ tự nghiệp vụ: không thể đón khách khi chưa báo đang đến đón, tránh lỗi nhảy trạng thái).
+   - **Tài xế đón khách (`POST /trips/{id}/pickup`)**: Chuyển sang `PickedUp` (Bắt đầu chở khách đến điểm đến).
    - **Tài xế từ chối (`POST /trips/{id}/driver-decline`)**:
      - Ghi nhận tài xế vào danh sách `_declined`.
      - Nếu số lần từ chối $\le k$ ($k = 3$): Tự động quay lại tìm tài xế kế tiếp gần nhất chưa từ chối.
@@ -305,6 +314,14 @@ Tuân thủ chính xác lưu đồ Mục 4 của tài liệu đặc tả:
 - Đóng gói chính sách độ bền vững dựa trên thư viện **Polly v8**:
   - **Retry Policy với Exponential Backoff & Jitter**: Tự động thử lại khi gặp lỗi tạm thời (HTTP 5xx, 408) với thời gian trễ tăng dần kết hợp độ lệch ngẫu nhiên (jitter) để tránh hiện tượng sập đổ đồng loạt (thundering herd).
   - **Circuit Breaker**: Tự động ngắt mạch khi tỷ lệ lỗi vượt ngưỡng cho phép, chuyển sang trạng thái Open để bảo vệ hệ thống hạ tầng không bị quá tải.
+
+### 3.9. API Gateway Aggregation Pattern (`ApiGateway.Aggregation`)
+- Hiện thực mẫu thiết kế **API Gateway Aggregation** tại cổng vào:
+  - Endpoint: `GET /aggregate/trips/{id}`.
+  - Sử dụng `IHttpClientFactory` kết hợp `BuildingBlocks.Resilience` (Polly Retry) để gọi song song 2 nguồn dữ liệu:
+    1. `GET /trips/{id}` (thông tin hành trình từ `TripService`).
+    2. `GET /payments/by-trip/{id}` (thông tin giao dịch & sổ cái từ `PaymentService`).
+  - Ghép kết quả thành một response tổng hợp duy nhất `{ trip, payment, paymentState }` giúp Client giảm số lượng round-trip HTTP, tối ưu trải nghiệm người dùng di động.
 
 ---
 

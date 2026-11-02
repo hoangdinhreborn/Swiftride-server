@@ -9,6 +9,7 @@ using TripService.Application.Trips.Commands.ConfirmTrip;
 using TripService.Application.Trips.Commands.DeclineTrip;
 using TripService.Application.Trips.Interfaces;
 using TripService.Domain.Trips;
+using TripService.Application.Trips.Events;
 using Xunit;
 
 namespace TripService.Tests.ApplicationTests;
@@ -19,6 +20,7 @@ public class DispatchHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<ICurrentUser> _user = new();
     private readonly Mock<IDriverMatchingGateway> _matching = new();
+    private readonly Mock<IOutbox> _outbox = new();
 
     private DriverDispatcher Dispatcher() => new(_matching.Object);
 
@@ -135,11 +137,13 @@ public class DispatchHandlerTests
         var trip = Stored(TestTrips.Offered(driver));
         LoginAs(driver);
 
-        var dto = await new AcceptTripHandler(_repo.Object, _uow.Object, _user.Object)
+        var dto = await new AcceptTripHandler(_repo.Object, _uow.Object, _user.Object, _outbox.Object)
             .HandleAsync(new AcceptTripCommand(trip.Id));
 
         Assert.Equal("DriverAccepted", dto.Status);
         Assert.Equal(driver, dto.DriverId);
+        _outbox.Verify(o => o.Enqueue(TripRoutingKeys.Accepted,
+            It.Is<TripAccepted>(e => e.TripId == trip.Id && e.DriverId == driver)), Times.Once);
     }
 
     [Fact]
@@ -149,10 +153,11 @@ public class DispatchHandlerTests
         LoginAs(Guid.NewGuid());
 
         await Assert.ThrowsAsync<ForbiddenException>(
-            () => new AcceptTripHandler(_repo.Object, _uow.Object, _user.Object)
+            () => new AcceptTripHandler(_repo.Object, _uow.Object, _user.Object, _outbox.Object)
                 .HandleAsync(new AcceptTripCommand(trip.Id)));
 
         SaveNever();
+        _outbox.Verify(o => o.Enqueue(It.IsAny<string>(), It.IsAny<object>()), Times.Never);
     }
 
     // ---------- Cancel ----------

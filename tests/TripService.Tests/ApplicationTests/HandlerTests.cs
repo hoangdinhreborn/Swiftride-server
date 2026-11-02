@@ -32,7 +32,7 @@ public class HandlerTests
 
     private Trip AcceptedTripBy(Guid driverId)
     {
-        var trip = TestTrips.Accepted(driverId);
+        var trip = TestTrips.EnRoute(driverId);
         _repo.Setup(r => r.GetByIdAsync(trip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(trip);
         return trip;
     }

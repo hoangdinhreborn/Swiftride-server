@@ -20,7 +20,7 @@ public class DropOffEventTests
     private (Trip trip, Guid driverId) PickedUpTrip()
     {
         var driverId = Guid.NewGuid();
-        var trip = TestTrips.Accepted(driverId, fare: 85_000m);
+        var trip = TestTrips.EnRoute(driverId, fare: 85_000m);
         trip.PickUp();
         _repo.Setup(r => r.GetByIdAsync(trip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(trip);
         return (trip, driverId);

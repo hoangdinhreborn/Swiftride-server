@@ -6,7 +6,7 @@ namespace TripService.Tests.DomainTests;
 
 public class TripStateTests
 {
-    public enum Act { Confirm, OfferTo, NoDriverFound, Accept, Decline, PickUp, DropOff, MarkPaid, MarkPaymentPending, Cancel }
+    public enum Act { Confirm, OfferTo, NoDriverFound, Accept, Decline, StartEnRoute, PickUp, DropOff, MarkPaid, MarkPaymentPending, Cancel }
 
     // Bảng chuyển trạng thái hợp lệ. Mọi ô không có trong bảng này phải bị từ chối
     private static readonly Dictionary<(TripStatus From, Act Action), TripStatus> Valid = new()
@@ -21,8 +21,11 @@ public class TripStateTests
         [(TripStatus.DriverOffered, Act.Decline)] = TripStatus.Searching,   // lần từ chối đầu (<= k)
         [(TripStatus.DriverOffered, Act.Cancel)] = TripStatus.Cancelled,
 
-        [(TripStatus.DriverAccepted, Act.PickUp)] = TripStatus.PickedUp,
+        [(TripStatus.DriverAccepted, Act.StartEnRoute)] = TripStatus.EnRoute,
         [(TripStatus.DriverAccepted, Act.Cancel)] = TripStatus.Cancelled,
+
+        [(TripStatus.EnRoute, Act.PickUp)] = TripStatus.PickedUp,
+        [(TripStatus.EnRoute, Act.Cancel)] = TripStatus.Cancelled,
 
         [(TripStatus.PickedUp, Act.DropOff)] = TripStatus.DroppedOff,
 
@@ -59,6 +62,8 @@ public class TripStateTests
 
         t.AcceptBy(t.OfferedDriverId!.Value);
         if (target == TripStatus.DriverAccepted) return t;
+        t.StartEnRoute();
+        if (target == TripStatus.EnRoute) return t;
         t.PickUp();
         if (target == TripStatus.PickedUp) return t;
         t.DropOff();
@@ -77,6 +82,7 @@ public class TripStateTests
             case Act.NoDriverFound: t.NoDriverFound(); break;
             case Act.Accept: t.AcceptBy(t.OfferedDriverId ?? Guid.NewGuid()); break;
             case Act.Decline: t.DeclineBy(t.OfferedDriverId ?? Guid.NewGuid()); break;
+            case Act.StartEnRoute: t.StartEnRoute(); break;
             case Act.PickUp: t.PickUp(); break;
             case Act.DropOff: t.DropOff(); break;
             case Act.MarkPaid: t.MarkPaid(); break;
@@ -124,6 +130,14 @@ public class TripStateTests
 
         Assert.Equal(driver, trip.DriverId);
         Assert.Null(trip.OfferedDriverId);
+    }
+
+    [Fact]
+    public void Khong_the_don_khach_khi_chua_bao_dang_den()
+    {
+        var trip = TestTrips.Accepted();
+        Assert.Throws<DomainException>(() => trip.PickUp());
+        Assert.Equal(TripStatus.DriverAccepted, trip.Status);
     }
 
     [Fact]

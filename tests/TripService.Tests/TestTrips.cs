@@ -29,4 +29,11 @@ internal static class TestTrips
         t.AcceptBy(d);
         return t;
     }
+
+    public static Trip EnRoute(Guid? driverId = null, decimal fare = 85_000m)
+    {
+        var t = Accepted(driverId, fare);
+        t.StartEnRoute();
+        return t;
+    }
 }

@@ -63,6 +63,7 @@ public class Trip
     public void NoDriverFound() => MoveTo(State.NoDriverFound());
     public void Cancel() => MoveTo(State.Cancel());
     public void PickUp() => MoveTo(State.PickUp());
+    public void StartEnRoute() => MoveTo(State.StartEnRoute());
     public void DropOff() => MoveTo(State.DropOff());
 
     // Idempotent: broker giao at-least-once, cùng một kết quả có thể đến nhiều lần

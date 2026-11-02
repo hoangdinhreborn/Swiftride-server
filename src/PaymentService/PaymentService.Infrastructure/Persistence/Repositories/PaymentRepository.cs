@@ -19,4 +19,7 @@ public class PaymentRepository(PaymentDbContext db) : IPaymentRepository
 
     public async Task AddAsync(Payment payment, CancellationToken ct = default)
         => await db.Payments.AddAsync(payment, ct);
+
+    public Task<Payment?> GetLatestByTripAsync(Guid tripId, CancellationToken ct = default)
+    => Query.Where(p => p.TripId == tripId).OrderByDescending(p => p.CreatedAt).FirstOrDefaultAsync(ct);
 }

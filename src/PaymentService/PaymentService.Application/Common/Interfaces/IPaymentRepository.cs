@@ -8,4 +8,5 @@ public interface IPaymentRepository
     Task<Payment?> GetByKeyAsync(Guid payerId, string idempotencyKey, CancellationToken ct = default);
     Task<Payment?> GetActiveByTripAsync(Guid tripId, CancellationToken ct = default);   // chưa Failed
     Task AddAsync(Payment payment, CancellationToken ct = default);
+    Task<Payment?> GetLatestByTripAsync(Guid tripId, CancellationToken ct = default);   // kể cả Failed
 }

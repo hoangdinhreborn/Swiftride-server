@@ -43,7 +43,9 @@ expect "$(post "$A" "$ID" driver-decline)" 200 "tai xe A tu choi"
 has_offer "$B" "$ID" || fail "sau khi A tu choi phai de xuat cho B"
 expect "$(post "$A" "$ID" driver-accept)" 403 "A da tu choi nen khong nhan lai duoc"
 
-for step in driver-accept pickup dropoff; do
+expect "$(post "$B" "$ID" driver-accept)" 200 "tai xe B: driver-accept"
+expect "$(post "$B" "$ID" pickup)" 409 "chua bao dang den thi khong don khach duoc"
+for step in en-route pickup dropoff; do
   expect "$(post "$B" "$ID" "$step")" 200 "tai xe B: $step"
 done
 

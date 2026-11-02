@@ -58,7 +58,7 @@ public class TripTests
     [Fact]
     public void Di_het_luong_thanh_cong_den_Paid()
     {
-        var trip = TestTrips.Accepted();
+        var trip = TestTrips.EnRoute();
         trip.PickUp();
         trip.DropOff();
         trip.MarkPaid();

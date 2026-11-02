@@ -25,7 +25,7 @@ public class ApplyPaymentResultTests
 
     private Trip DroppedOffTrip()
     {
-        var trip = TestTrips.Accepted();
+        var trip = TestTrips.EnRoute();
         trip.PickUp();
         trip.DropOff();
         return Stored(trip);

@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using ApiGateway.Aggregation;
 using BuildingBlocks.Observability;
+using BuildingBlocks.Resilience;
 using BuildingBlocks.Security;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddSwiftRideTelemetry("api-gateway"); 
+builder.AddSwiftRideTelemetry("api-gateway");
 
 // Xác thực JWT ở cửa vào (dùng chung cấu hình với các service)
 builder.Services.AddSwiftRideAuth(builder.Configuration);
@@ -32,13 +34,26 @@ builder.Services.AddRateLimiter(o =>
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Services.AddHttpClient("trip", c =>
+    {
+        c.BaseAddress = new Uri(builder.Configuration["Services:Trip:BaseUrl"]!);
+        c.Timeout = TimeSpan.FromSeconds(10);
+    }).AddSwiftRideRetry();
+
+builder.Services.AddHttpClient("payment", c =>
+    {
+        c.BaseAddress = new Uri(builder.Configuration["Services:Payment:BaseUrl"]!);
+        c.Timeout = TimeSpan.FromSeconds(10);
+    }).AddSwiftRideRetry();
+    
 var app = builder.Build();
 
-app.UseTraceIdHeader();  
+app.UseTraceIdHeader();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
+app.MapAggregationEndpoints();
 app.MapReverseProxy();
 
 app.Run();

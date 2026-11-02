@@ -10,6 +10,7 @@ using TripService.Application.Trips.Commands.DeclineTrip;
 using TripService.Application.Trips.Queries.GetMyOffers;
 using TripService.Application.Trips.Dtos;
 using TripService.Application.Trips.Queries.GetTrip;
+using TripService.Application.Trips.Commands.StartEnRoute;
 
 namespace TripService.Api.Endpoints;
 
@@ -56,6 +57,10 @@ public static class TripEndpoints
         // Các chuyến đang chờ tài xế này trả lời (tài xế gọi định kỳ, hoặc khi nhận thông báo)
         g.MapGet("/offers", async (IHandler<GetMyOffersQuery, IReadOnlyList<TripDto>> h, CancellationToken ct) =>
             Results.Ok(await h.HandleAsync(new GetMyOffersQuery(), ct)))
+            .RequireAuthorization(Policies.DriverOnly);
+
+        g.MapPost("/{id:guid}/en-route", async (Guid id, IHandler<StartEnRouteCommand, TripDto> h, CancellationToken ct) =>
+            Results.Ok(await h.HandleAsync(new StartEnRouteCommand(id), ct)))
             .RequireAuthorization(Policies.DriverOnly);
 
         return app;
