@@ -137,20 +137,22 @@ dotnet ef database update --project src/TripService/TripService.Infrastructure -
 dotnet ef database update --project src/PaymentService/PaymentService.Infrastructure --startup-project src/PaymentService/PaymentService.Api
 ```
 
-### 4. Chạy Kiểm Thử (235 Tests)
+### 4. Chạy Kiểm Thử (270 Tests)
 ```bash
 dotnet test SwiftRide.slnx
 ```
-Kết quả kiểm thử: **235/235 tests PASS 100%**:
-- `TripService.Tests`: **152 tests** (State pattern, Dispatcher retry, Offer Expiry Scanner, Outbox, CQRS).
-- `PaymentService.Tests`: **63 tests** (Double-entry ledger, PaymentMethod Factory, Bounded Retry Settler, Idempotency, Outbox).
-- `MatchingService.Tests`: **20 tests** (Strategy pricing, Haversine, Geo-query).
+Kết quả kiểm thử: **270/270 tests PASS 100%**:
+- `TripService.Tests`: **161 tests** (State pattern, Dispatcher retry, Offer Expiry Scanner, Outbox, SAGA PaymentRejection).
+- `PaymentService.Tests`: **72 tests** (Double-entry ledger, PaymentMethod Factory, Bounded Retry Settler, Idempotency, SAGA Compensation).
+- `BuildingBlocks.Resilience.Tests`: **17 tests** (Polly retry, Exponential backoff, Circuit Breaker).
+- `MatchingService.Tests`: **20 tests** (Strategy pricing, Haversine, Geo-query, Live Driver Location).
 
 ---
 
 ## 5. Cấu Trúc Nhánh Git (Branching Strategy)
 
 - **`main`**: Nhánh chính tích hợp toàn bộ hệ thống hoàn chỉnh.
+- **`feature/resilience-and-saga-compensation`**: Thư viện `BuildingBlocks.Resilience` (Polly retry, Circuit Breaker) và mẫu thiết kế SAGA Compensation (hoàn tiền và đảo bút toán tự động khi Trip từ chối thanh toán).
 - **`feature/payment-factory-and-offer-expiry`**: Factory Pattern cho PaymentMethod, Bounded Retry cho PaymentSettler, và Offer Expiry Job cho TripService.
 - **`feature/state-pattern-and-dispatch`**: Hiện thực State Pattern cho Trip và thuật toán điều phối ghép tài xế (retry $\le k$ lần).
 - **`feature/shared-auth`**: Đóng gói thư viện dùng chung `BuildingBlocks.Security`.

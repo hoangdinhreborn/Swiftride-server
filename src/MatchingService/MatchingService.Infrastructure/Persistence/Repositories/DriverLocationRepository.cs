@@ -24,6 +24,14 @@ public class DriverLocationRepository(MatchingMongoContext ctx) : IDriverLocatio
             x => x.DriverId == driver.DriverId, doc, new ReplaceOptions { IsUpsert = true }, ct);
     }
 
+    public async Task<DriverLocation?> GetByDriverIdAsync(Guid driverId, CancellationToken ct = default)
+    {
+        var doc = await ctx.DriverLocations.Find(x => x.DriverId == driverId).FirstOrDefaultAsync(ct);
+        if (doc is null) return null;
+        var p = new GeoPoint(doc.Location.Coordinates.Latitude, doc.Location.Coordinates.Longitude);
+        return DriverLocation.Create(doc.DriverId, p, doc.IsAvailable);
+    }
+
     public async Task<IReadOnlyList<NearbyDriverDto>> FindNearestAvailableAsync(
     GeoPoint from, double maxDistanceKm, TimeSpan maxAge, int limit,
     CancellationToken ct = default, IReadOnlyCollection<Guid>? exclude = null)

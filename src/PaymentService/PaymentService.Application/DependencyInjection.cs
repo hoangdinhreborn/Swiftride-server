@@ -18,6 +18,7 @@ public static class DependencyInjection
                          .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerType))
                 services.AddScoped(i, type);
         services.AddScoped<PaymentSettler>();
+        services.AddScoped<PaymentRefunder>();
 
         return services;
     }

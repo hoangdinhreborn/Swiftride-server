@@ -11,6 +11,7 @@ public class FakePaymentProvider : IPaymentProvider
 {
     private readonly ConcurrentDictionary<string, ChargeResult> _settled = new();   // idempotency theo Reference
     private readonly ConcurrentDictionary<string, int> _calls = new();
+    private readonly ConcurrentDictionary<string, RefundResult> _refunded = new();
 
     public Task<ChargeResult> ChargeAsync(ChargeRequest r, CancellationToken ct = default)
     {
@@ -23,7 +24,7 @@ public class FakePaymentProvider : IPaymentProvider
 
         var result = r.Method.Kind switch
         {
-            PaymentMethodKind.Card   => r.Token == "tok_declined" ? Declined("Thẻ bị từ chối") : Approved(),
+            PaymentMethodKind.Card => r.Token == "tok_declined" ? Declined("Thẻ bị từ chối") : Approved(),
             PaymentMethodKind.Wallet => r.Token == "wallet_empty" ? Declined("Số dư ví không đủ") : Approved(),
             _ => Declined("Phương thức thanh toán chưa được hỗ trợ")
         };
@@ -32,4 +33,6 @@ public class FakePaymentProvider : IPaymentProvider
 
     private static ChargeResult Approved() => new(true, $"fake_{Guid.NewGuid():N}", null);
     private static ChargeResult Declined(string reason) => new(false, null, reason);
+    public Task<RefundResult> RefundAsync(RefundRequest r, CancellationToken ct = default)
+        => Task.FromResult(_refunded.GetOrAdd(r.Reference, _ => new RefundResult(true, null)));
 }

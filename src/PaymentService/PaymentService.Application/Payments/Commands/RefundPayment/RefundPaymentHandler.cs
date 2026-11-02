@@ -6,7 +6,7 @@ using PaymentService.Domain.Payments;
 
 namespace PaymentService.Application.Payments.Commands.RefundPayment;
 
-public sealed class RefundPaymentHandler(IPaymentRepository repo, IUnitOfWork uow)
+public sealed class RefundPaymentHandler(IPaymentRepository repo, PaymentRefunder refunder)
     : IHandler<RefundPaymentCommand, PaymentDto>
 {
     public async Task<PaymentDto> HandleAsync(RefundPaymentCommand cmd, CancellationToken ct = default)
@@ -16,8 +16,7 @@ public sealed class RefundPaymentHandler(IPaymentRepository repo, IUnitOfWork uo
 
         if (payment.Status == PaymentStatus.Refunded) return payment.ToDto();   // hoàn lần hai: không làm gì thêm
 
-        payment.Refund();
-        await uow.SaveChangesAsync(ct);
+        await refunder.RefundAsync(payment, "Hoàn tiền thủ công bởi quản trị viên", ct);
         return payment.ToDto();
     }
 }

@@ -8,6 +8,8 @@ public interface IDriverLocationRepository
 {
     Task UpsertAsync(DriverLocation driver, CancellationToken ct = default);
 
+    Task<DriverLocation?> GetByDriverIdAsync(Guid driverId, CancellationToken ct = default);
+
     // Kết quả đã sắp theo khoảng cách tăng dần
     Task<IReadOnlyList<NearbyDriverDto>> FindNearestAvailableAsync(
         GeoPoint from, double maxDistanceKm, TimeSpan maxAge, int limit, CancellationToken ct = default, IReadOnlyCollection<Guid>? exclude = null);

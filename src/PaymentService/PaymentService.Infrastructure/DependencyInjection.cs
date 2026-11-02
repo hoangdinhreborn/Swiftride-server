@@ -1,3 +1,4 @@
+using BuildingBlocks.Resilience;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PaymentService.Application.Common.Interfaces;
@@ -24,15 +25,16 @@ public static class DependencyInjection
         services.AddHttpClient<ITripGateway, TripHttpGateway>(c =>
             {
                 c.BaseAddress = new Uri(tripBaseUrl);
-                c.Timeout = TimeSpan.FromSeconds(3);
+                c.Timeout = TimeSpan.FromSeconds(10);
             })
+            .AddSwiftRideRetry()
             .AddHttpMessageHandler<BearerTokenHandler>();
         services.AddSingleton(new RabbitMqSettings(rabbitUri));
         services.AddHostedService<RideCompletedConsumer>();
         services.AddScoped<IOutbox>(sp => sp.GetRequiredService<PaymentDbContext>());   // cùng DbContext => cùng transaction
         services.AddSingleton<IRawPublisher>(new RabbitMqPublisher(rabbitUri));
         services.AddHostedService<OutboxPublisher>();
-
+        services.AddHostedService<PaymentRejectedConsumer>();
         return services;
     }
 }

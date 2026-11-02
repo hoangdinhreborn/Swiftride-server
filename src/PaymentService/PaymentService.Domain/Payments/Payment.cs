@@ -16,6 +16,7 @@ public class Payment
     public string IdempotencyKey { get; private set; } = "";
     public string? ProviderReference { get; private set; }
     public string? FailureReason { get; private set; }
+    public string? RefundReason { get; private set; }
     public int Attempts { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public IReadOnlyList<LedgerEntry> Entries => _entries;
@@ -74,10 +75,11 @@ public class Payment
         FailureReason = Truncate(reason);
     }
 
-    public void Refund()
+    public void Refund(string? reason = null)
     {
         Require(PaymentStatus.Succeeded);
         Status = PaymentStatus.Refunded;
+        RefundReason = reason is null ? null : Truncate(reason);
         Post(debit: LedgerAccount.TripRevenue, credit: LedgerAccount.GatewayClearing);   // đảo bút toán
     }
 

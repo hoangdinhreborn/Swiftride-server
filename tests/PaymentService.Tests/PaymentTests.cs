@@ -135,4 +135,24 @@ public class PaymentTests
         p.MarkSucceeded("ref");
         Assert.Throws<DomainException>(() => p.UseMethod(PaymentMethodKind.Card));
     }
+        [Fact]
+    public void Refund_ghi_ly_do_va_cat_o_300_ky_tu()
+    {
+        var p = New();
+        p.MarkSucceeded("ref");
+        p.Refund(new string('x', 400));
+
+        Assert.Equal(300, p.RefundReason!.Length);
+    }
+
+    [Fact]
+    public void Refund_khong_truyen_ly_do_van_chay_nhu_cu()
+    {
+        var p = New();
+        p.MarkSucceeded("ref");
+        p.Refund();
+
+        Assert.Null(p.RefundReason);
+        Assert.Equal(PaymentStatus.Refunded, p.Status);
+    }
 }

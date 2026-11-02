@@ -92,6 +92,10 @@ namespace PaymentService.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("RefundReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

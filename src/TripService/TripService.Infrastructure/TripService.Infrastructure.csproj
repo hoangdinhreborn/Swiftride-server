@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TripService.Application\TripService.Application.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Resilience\BuildingBlocks.Resilience.csproj" />
   </ItemGroup>
 
   <ItemGroup>

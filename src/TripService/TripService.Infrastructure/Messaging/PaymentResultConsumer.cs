@@ -102,14 +102,20 @@ public sealed class PaymentResultConsumer(
             {
                 await using var scope = scopes.CreateAsyncScope();
                 var handler = scope.ServiceProvider
-                    .GetRequiredService<IHandler<ApplyPaymentResultCommand, TripDto>>();
+                    .GetRequiredService<IHandler<ApplyPaymentResultCommand, ApplyPaymentResultOutcome>>();
 
-                var trip = await handler.HandleAsync(new ApplyPaymentResultCommand(msg.TripId, succeeded), ct);
-                log.LogInformation("Chuyến {TripId}: thanh toán {Result} -> trạng thái {Status}",
-                    msg.TripId, succeeded ? "thành công" : "thất bại", trip.Status);
+                var outcome = await handler.HandleAsync(new ApplyPaymentResultCommand(msg.TripId, msg.PaymentId, succeeded), ct);
+
+                if (outcome.Applied)
+                    log.LogInformation("Chuyến {TripId}: thanh toán {Result} -> trạng thái {Status}",
+                        msg.TripId, succeeded ? "thành công" : "thất bại", outcome.TripStatus);
+                else
+                    log.LogWarning("Chuyến {TripId}: không áp dụng được thanh toán {PaymentId} ({Reason}). {Action}",
+                        msg.TripId, msg.PaymentId, outcome.RejectionReason,
+                        succeeded ? "Đã phát trip.payment-rejected để hoàn tiền" : "Chưa trừ tiền nên không cần bồi thường");
                 return;
             }
-            // Thử lại cũng vô ích: không có chuyến, hoặc trạng thái không cho phép. Vào DLQ để người xử lý
+            // Thử lại cũng vô ích: để người xử lý qua DLQ
             catch (Exception ex) when (ex is NotFoundException or DomainException) { throw; }
             catch (Exception ex) when (attempt < MaxAttempts && !ct.IsCancellationRequested)   // ví dụ ConcurrencyException
             {

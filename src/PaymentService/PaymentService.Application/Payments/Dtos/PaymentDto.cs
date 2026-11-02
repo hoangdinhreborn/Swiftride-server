@@ -4,4 +4,4 @@ public record LedgerEntryDto(string Account, string Direction, decimal Amount);
 
 public record PaymentDto(
     Guid Id, Guid TripId, Guid PayerId, decimal Amount, string Status, string Method, int Attempts,
-    string? FailureReason, DateTime CreatedAt, IReadOnlyList<LedgerEntryDto> Ledger);
+    string? FailureReason, string? RefundReason, DateTime CreatedAt, IReadOnlyList<LedgerEntryDto> Ledger);

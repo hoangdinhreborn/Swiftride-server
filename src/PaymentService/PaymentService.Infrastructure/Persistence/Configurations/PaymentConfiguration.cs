@@ -16,6 +16,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.Property(x => x.IdempotencyKey).HasMaxLength(Payment.MaxKeyLength).IsRequired();
         b.Property(x => x.ProviderReference).HasMaxLength(100);
         b.Property(x => x.FailureReason).HasMaxLength(300);
+        b.Property(x => x.RefundReason).HasMaxLength(300);
 
         // Cùng một người, cùng một key: chỉ một thanh toán
         b.HasIndex(x => new { x.PayerId, x.IdempotencyKey }).IsUnique();

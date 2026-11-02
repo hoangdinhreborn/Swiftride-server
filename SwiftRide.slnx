@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/BuildingBlocks.Observability/BuildingBlocks.Observability.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Resilience/BuildingBlocks.Resilience.csproj" />
     <Project Path="src/BuildingBlocks/BuildingBlocks.Security/BuildingBlocks.Security.csproj" />
   </Folder>
   <Folder Name="/src/MatchingService/">
@@ -25,6 +26,7 @@
     <Project Path="src/TripService/TripService.Infrastructure/TripService.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/BuildingBlocks.Resilience.Tests/BuildingBlocks.Resilience.Tests.csproj" />
     <Project Path="tests/MatchingService.Tests/MatchingService.Tests.csproj" />
     <Project Path="tests/PaymentService.Tests/PaymentService.Tests.csproj" />
     <Project Path="tests/TripService.Tests/TripService.Tests.csproj" />

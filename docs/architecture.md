@@ -18,7 +18,7 @@ swiftride-server/
 │
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                                   # GitHub Actions CI: Build, Test (235 tests) & Docker E2E
+│       └── ci.yml                                   # GitHub Actions CI: Build, Test (270 tests) & Docker E2E
 │
 ├── docker/
 │   └── Dockerfile                                   # Multi-stage build tối ưu cho toàn bộ các service
@@ -49,9 +49,13 @@ swiftride-server/
 │   │   │   ├── SecurityExtensions.cs                # Extension methods: AddSwiftRideAuth, MapDevAuthEndpoints
 │   │   │   └── BuildingBlocks.Security.csproj
 │   │   │
-│   │   └── BuildingBlocks.Observability/            # Đóng gói OpenTelemetry & Distributed Tracing
-│   │       ├── ObservabilityExtensions.cs           # AddSwiftRideTelemetry (Tracing, Metrics, Logs, OTLP)
-│   │       └── BuildingBlocks.Observability.csproj
+│   │   ├── BuildingBlocks.Observability/            # Đóng gói OpenTelemetry & Distributed Tracing
+│   │   │   ├── ObservabilityExtensions.cs           # AddSwiftRideTelemetry (Tracing, Metrics, Logs, OTLP)
+│   │   │   └── BuildingBlocks.Observability.csproj
+│   │   │
+│   │   └── BuildingBlocks.Resilience/               # Đóng gói Polly Resilience Policies (Retry, Jitter, Circuit Breaker)
+│   │       ├── ResilienceExtensions.cs              # AddSwiftRideRetry, AddSwiftRideCircuitBreaker
+│   │       └── BuildingBlocks.Resilience.csproj
 │   │
 │   ├── TripService/                                 # [MICROSERVICE 1: QUẢN LÝ CHUYẾN ĐI & ĐIỀU PHỐI]
 │   │   │                                            # Cơ sở dữ liệu: PostgreSQL riêng (tripdb)
@@ -81,7 +85,9 @@ swiftride-server/
 │   │   │   │   │   ├── PickUpTrip/                  # PickUpTripCommand + Handler
 │   │   │   │   │   └── RequestTrip/                 # RequestTripHandler (Báo giá cước)
 │   │   │   │   ├── Dtos/TripDto.cs, TripMappings.cs
-│   │   │   │   ├── Events/RideCompleted.cs          # Domain Event phát đi khi trả khách
+│   │   │   │   ├── Events/
+│   │   │   │   │   ├── RideCompleted.cs             # Domain Event phát đi khi trả khách (Outbox Saga)
+│   │   │   │   │   └── PaymentRejected.cs           # Event phát đi khi Trip từ chối thanh toán (Saga bồi thường)
 │   │   │   │   ├── Interfaces/ITripRepository.cs
 │   │   │   │   ├── Queries/
 │   │   │   │   │   ├── GetTrip/                     # GetTripQuery + Handler
@@ -181,10 +187,12 @@ swiftride-server/
 │       │   │   ├── Commands/
 │       │   │   │   ├── CreatePayment/               # Xử lý Idempotency, gọi PaymentSettler, ghi sổ cái
 │       │   │   │   ├── ProcessRideCompleted/        # Xử lý sự kiện từ RabbitMQ Consumer (AutoPay)
-│       │   │   │   └── RefundPayment/               # Hoàn tiền, đảo bút toán sổ cái
+│       │   │   │   ├── CompensatePayment/           # Xử lý bồi thường/hoàn tiền khi Trip từ chối thanh toán
+│       │   │   │   └── RefundPayment/               # Hoàn tiền thủ công, đảo bút toán sổ cái
 │       │   │   ├── Dtos/PaymentDto.cs, PaymentMappings.cs
 │       │   │   ├── Events/PaymentEvents.cs
 │       │   │   ├── Queries/GetPayment/
+│       │   │   ├── PaymentRefunder.cs               # Logic hoàn tiền qua cổng và đảo bút toán sổ cái kép
 │       │   │   ├── PaymentSettler.cs                # Bounded Retry với Idempotency Key, chuyển PaymentPending nếu lỗi tạm thời
 │       │   │   ├── PaymentRetryOptions.cs           # Cấu hình retry: maxAttempts, delayMs
 │       │   │   └── AutoPayOptions.cs
@@ -193,7 +201,7 @@ swiftride-server/
 │       │
 │       ├── PaymentService.Domain/                   # [Domain Layer]: Double-Entry Ledger & Factory Pattern
 │       │   ├── Payments/
-│       │   │   ├── Payment.cs                       # Thực thể thanh toán (Trạng thái Pending, Succeeded, Failed, PaymentPending)
+│       │   │   ├── Payment.cs                       # Thực thể thanh toán (Trạng thái Pending, Succeeded, Failed, PaymentPending, Refunded)
 │       │   │   ├── PaymentMethod.cs                 # [FACTORY PATTERN]: Lớp cơ sở PaymentMethod
 │       │   │   ├── PaymentMethodFactory.cs          # Tạo đối tượng CardPaymentMethod (tokenized) / WalletPaymentMethod
 │       │   │   ├── LedgerEntry.cs                   # Bút toán Nợ/Có (Debit/Credit)
@@ -202,10 +210,10 @@ swiftride-server/
 │       │
 │       └── PaymentService.Infrastructure/          # [Infrastructure Layer]: EF Core & Gateways
 │           ├── Gateways/TripHttpGateway.cs          # Gọi TripService lấy số tiền cước thực tế
-│           ├── Messaging/                           # RabbitMqPublisher, OutboxPublisher, RideCompletedConsumer
+│           ├── Messaging/                           # RabbitMqPublisher, OutboxPublisher, RideCompletedConsumer, PaymentRejectedConsumer
 │           ├── Persistence/
 │           │   ├── Configurations/PaymentConfiguration.cs
-│           │   ├── Migrations/                      # EF Core Code-First (Payments, LedgerEntries, Outbox, PaymentMethod, PaymentAttempts)
+│           │   ├── Migrations/                      # EF Core Code-First (Payments, LedgerEntries, Outbox, PaymentMethod, PaymentAttempts, AddRefundReason)
 │           │   ├── Repositories/PaymentRepository.cs
 │           │   └── PaymentDbContext.cs
 │           ├── Providers/FakePaymentProvider.cs     # Mock cổng thanh toán thẻ/ví điện tử
@@ -213,9 +221,10 @@ swiftride-server/
 │           └── PaymentService.Infrastructure.csproj
 │
 └── tests/
-    ├── TripService.Tests/                           # 152 tests: State Pattern, Dispatcher, Offer Expiry, Outbox, CQRS
-    ├── MatchingService.Tests/                       # 20 tests: Strategy Pricing, Haversine, Architecture
-    └── PaymentService.Tests/                        # 63 tests: Double-Entry Ledger, Factory Pattern, Settler Retry, Idempotency
+    ├── TripService.Tests/                           # 161 tests: State Pattern, Dispatcher, Offer Expiry, Outbox, Saga PaymentRejected
+    ├── PaymentService.Tests/                        # 72 tests: Double-Entry Ledger, Factory Pattern, Settler Retry, SAGA Compensation
+    ├── BuildingBlocks.Resilience.Tests/             # 17 tests: Polly Retry, Jitter, Circuit Breaker
+    └── MatchingService.Tests/                       # 20 tests: Strategy Pricing, Haversine, Driver Location Query
 ```
 
 ---
@@ -269,12 +278,19 @@ Tuân thủ chính xác lưu đồ Mục 4 của tài liệu đặc tả:
   - Nếu sau các lần thử vẫn lỗi tạm thời: Chuyến đi được chuyển sang trạng thái **`PaymentPending`** (chờ xử lý) thay vì trừ tiền lặp hoặc báo thành công sai, đúng theo lưu đồ Mục 4 & Mục 9.2 đặc tả.
   - Khi thành công: Chuyển sang `Succeeded` và ghi nhận 2 bút toán Nợ/Có vào sổ cái.
 
-### 3.5. Transactional Outbox Pattern & Event Saga (`TripService` $\leftrightarrow$ `PaymentService`)
+### 3.5. Transactional Outbox Pattern, Event Saga & Bồi Thường (Saga Compensation)
 - Khi tài xế trả khách (`POST /trips/{id}/dropoff`), `TripService` thực hiện trong **cùng một PostgreSQL transaction**:
   1. Đổi trạng thái chuyến đi sang `DroppedOff`.
   2. Ghi bản ghi sự kiện `RideCompleted` vào bảng `OutboxMessages` (kèm W3C `traceparent`).
 - Background worker `OutboxPublisher` định kỳ quét bảng outbox và publish sự kiện lên **RabbitMQ** (Exchange: `swiftride.events`).
-- `PaymentService` (`RideCompletedConsumer`) nhận sự kiện để trừ tiền. Sau khi thanh toán thành công, kết quả được bắn ngược về RabbitMQ để `PaymentResultConsumer` trong `TripService` cập nhật trạng thái chuyến đi sang `Paid`.
+- `PaymentService` (`RideCompletedConsumer`) nhận sự kiện để trừ tiền. Sau khi thanh toán thành công, kết quả được bắn ngược về RabbitMQ (`PaymentResultConsumer`) trong `TripService`.
+- **Cơ chế bồi thường Saga (Saga Compensation Flow)**:
+  - Nếu `TripService` từ chối áp dụng kết quả thanh toán (ví dụ: Chuyến đã bị hủy `Cancelled`, hoặc `DomainException` vi phạm State Pattern, hoặc không tìm thấy chuyến):
+  - `TripService` tự động phát sự kiện **`PaymentRejected`** vào Outbox để gửi tới RabbitMQ (`trip.payment-rejected`).
+  - `PaymentRejectedConsumer` trên `PaymentService` tiêu thụ sự kiện này, kích hoạt lệnh **`CompensatePayment`**:
+    1. Gọi `PaymentRefunder.RefundAsync` để hoàn tiền qua cổng thanh toán với Idempotency Key.
+    2. Đảo bút toán trong sổ cái kép: `Ghi Nợ (Debit): TripRevenue`, `Ghi Có (Credit): GatewayClearing`.
+    3. Cập nhật trạng thái Payment sang **`Refunded`** kèm lý do từ chối (`RefundReason`).
 
 ### 3.6. Strategy Pattern (`MatchingService`)
 - Hợp đồng `IPricingStrategy` được triển khai bởi `StandardPricing`, `SurgePricing` (nhân hệ số cao điểm), và `PromoPricing` (Decorator giảm giá khuyến mãi).
@@ -284,6 +300,11 @@ Tuân thủ chính xác lưu đồ Mục 4 của tài liệu đặc tả:
 - Dùng Microsoft YARP (Yet Another Reverse Proxy).
 - Xác thực tập trung JWT Bearer thông qua `BuildingBlocks.Security` ngay tại cửa ngõ. Request không có token hợp lệ bị chặn ngay lập tức (HTTP 401).
 - Rate Limiting 60 request/phút cho từng Client (dựa trên JWT `sub` hoặc IP).
+
+### 3.8. Resilience Pattern (`BuildingBlocks.Resilience`)
+- Đóng gói chính sách độ bền vững dựa trên thư viện **Polly v8**:
+  - **Retry Policy với Exponential Backoff & Jitter**: Tự động thử lại khi gặp lỗi tạm thời (HTTP 5xx, 408) với thời gian trễ tăng dần kết hợp độ lệch ngẫu nhiên (jitter) để tránh hiện tượng sập đổ đồng loạt (thundering herd).
+  - **Circuit Breaker**: Tự động ngắt mạch khi tỷ lệ lỗi vượt ngưỡng cho phép, chuyển sang trạng thái Open để bảo vệ hệ thống hạ tầng không bị quá tải.
 
 ---
 

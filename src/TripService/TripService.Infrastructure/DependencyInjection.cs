@@ -1,3 +1,4 @@
+using BuildingBlocks.Resilience;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,15 +27,17 @@ public static class DependencyInjection
         services.AddHttpClient<IPricingGateway, MatchingPricingGateway>(c =>
             {
                 c.BaseAddress = new Uri(matchingBaseUrl);
-                c.Timeout = TimeSpan.FromSeconds(3);
+                c.Timeout = TimeSpan.FromSeconds(10);
             })
+            .AddSwiftRideRetry()
             .AddHttpMessageHandler<BearerTokenHandler>();
         services.AddHttpClient<IDriverMatchingGateway, MatchingDriverGateway>(c =>
             {
                 c.BaseAddress = new Uri(matchingBaseUrl);
-                c.Timeout = TimeSpan.FromSeconds(3);
+                c.Timeout = TimeSpan.FromSeconds(10);
             })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+            .AddSwiftRideRetry()
+            .AddHttpMessageHandler<BearerTokenHandler>();
         services.AddSingleton<IRawPublisher>(new RabbitMqPublisher(rabbitUri));
         services.AddHostedService<OutboxPublisher>();
         services.AddSingleton(new RabbitMqSettings(rabbitUri));
