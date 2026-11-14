@@ -1,0 +1,895 @@
+{
+  "info": {
+    "_postman_id": "a7c8e921-5f21-4f81-9b12-984321098765",
+    "name": "SwiftRide Complete API Collection (Demo)",
+    "description": "Bộ Collection Postman hoàn chỉnh demo toàn bộ các luồng Microservices của hệ thống SwiftRide (.NET 10). Bao gồm tự động lấy JWT token, set environment variables, quản lý toàn bộ vòng đời chuyến đi (State Pattern), định vị GPS MatchingService, thanh toán Double-Entry Ledger và API Gateway Aggregation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication & Security",
+      "description": "Thư mục chứa các API sinh JWT Bearer token theo phân quyền Role (Rider, Driver, Admin) qua API Gateway. Có script Test tự động set token vào Postman Environment / Collection Variables.",
+      "item": [
+        {
+          "name": "1.1 Get Rider Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var responseText = pm.response.text();",
+                  "// Endpoint trả về raw JWT string",
+                  "var token = responseText.trim().replace(/^\"|\"$/g, '');",
+                  "pm.environment.set('riderToken', token);",
+                  "pm.collectionVariables.set('riderToken', token);",
+                  "pm.environment.set('token', token);",
+                  "pm.collectionVariables.set('token', token);",
+                  "console.log('Rider Token set successfully:', token);",
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Token is not empty', function () {",
+                  "    pm.expect(token).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role\": \"Rider\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dev/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dev",
+                "token"
+              ]
+            },
+            "description": "Sinh token JWT Bearer cho Rider (quyền đặt xe, hủy chuyến, xác nhận giá, xem chuyến)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Get Driver 1 Token (Driver A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var responseText = pm.response.text();",
+                  "var token = responseText.trim().replace(/^\"|\"$/g, '');",
+                  "pm.environment.set('driverTokenA', token);",
+                  "pm.collectionVariables.set('driverTokenA', token);",
+                  "pm.environment.set('driverToken', token);",
+                  "pm.collectionVariables.set('driverToken', token);",
+                  "console.log('Driver A Token set successfully:', token);",
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role\": \"Driver\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dev/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dev",
+                "token"
+              ]
+            },
+            "description": "Sinh token JWT Bearer cho Tài xế A."
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Get Driver 2 Token (Driver B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var responseText = pm.response.text();",
+                  "var token = responseText.trim().replace(/^\"|\"$/g, '');",
+                  "pm.environment.set('driverTokenB', token);",
+                  "pm.collectionVariables.set('driverTokenB', token);",
+                  "console.log('Driver B Token set successfully:', token);",
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role\": \"Driver\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dev/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dev",
+                "token"
+              ]
+            },
+            "description": "Sinh token JWT Bearer cho Tài xế B (dùng để test luồng từ chối và retry điều phối tài xế kế tiếp)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 Get Admin Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var responseText = pm.response.text();",
+                  "var token = responseText.trim().replace(/^\"|\"$/g, '');",
+                  "pm.environment.set('adminToken', token);",
+                  "pm.collectionVariables.set('adminToken', token);",
+                  "console.log('Admin Token set successfully:', token);",
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role\": \"Admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dev/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dev",
+                "token"
+              ]
+            },
+            "description": "Sinh token JWT Bearer cho Quản trị viên (quyền hoàn tiền /payments/{id}/refund, tra cứu tổng hợp)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Trip Lifecycle & Driver Dispatching",
+      "description": "Toàn bộ chu trình vòng đời chuyến đi theo State Pattern (11 trạng thái) & Thuật toán điều phối (Flowchart tài xế từ chối và retry).",
+      "item": [
+        {
+          "name": "2.1 Update Driver A Location (Online)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"lat\": 10.7725,\n    \"lng\": 106.6990,\n    \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/location",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "me",
+                "location"
+              ]
+            },
+            "description": "Tài xế A cập nhật vị trí GPS tại Chợ Bến Thành và bật sẵn sàng nhận cuốc (đồng bộ MongoDB 2dsphere index)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Update Driver B Location (Online)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenB}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"lat\": 10.7735,\n    \"lng\": 106.7000,\n    \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/location",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "me",
+                "location"
+              ]
+            },
+            "description": "Tài xế B cập nhật vị trí lân cận (cách 300m) để sẵn sàng nhận cuốc dự phòng khi Tài xế A từ chối."
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Get Fare Quote (MatchingService)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"pickupLat\": 10.7721,\n    \"pickupLng\": 106.6980,\n    \"destinationLat\": 10.7290,\n    \"destinationLng\": 106.7190,\n    \"promoCode\": \"SWIFTRIDE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quote"
+              ]
+            },
+            "description": "Khách hàng tra cứu báo giá ước tính. MatchingService tự động áp dụng Strategy Pattern (Standard / Surge theo mật độ tài xế / Promo)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Request Trip (Rider Đặt xe -> Requested)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.id) {",
+                  "    pm.environment.set('tripId', jsonData.id);",
+                  "    pm.collectionVariables.set('tripId', jsonData.id);",
+                  "    console.log('Saved tripId:', jsonData.id);",
+                  "}",
+                  "pm.test('Trip created with status Requested', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(jsonData.status).to.eql('Requested');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"pickup\": \"Chợ Bến Thành (Quận 1)\",\n    \"pickupLat\": 10.7721,\n    \"pickupLng\": 106.6980,\n    \"destination\": \"Phú Mỹ Hưng (Quận 7)\",\n    \"destinationLat\": 10.7290,\n    \"destinationLng\": 106.7190,\n    \"promoCode\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            },
+            "description": "Rider tạo yêu cầu đặt xe. TripService tính cước qua MatchingService và lưu chuyến ở trạng thái Requested (chờ rider xác nhận giá)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Confirm Trip (Rider Đồng ý giá -> Điều phối DriverOffered)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status is DriverOffered or Accepted', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData.status).to.be.oneOf(['DriverOffered', 'Searching']);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "confirm"
+              ]
+            },
+            "description": "Rider đồng ý giá cước. DriverDispatcher quét tìm tài xế gần nhất chưa từ chối qua MatchingService và gán OfferedDriverId -> chuyển sang trạng thái DriverOffered."
+          },
+          "response": []
+        },
+        {
+          "name": "2.6 Check Driver A Offers (GET /trips/offers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Driver A has active offer', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/offers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "offers"
+              ]
+            },
+            "description": "Tài xế A kiểm tra các cuốc xe đang được hệ thống đề xuất cho mình."
+          },
+          "response": []
+        },
+        {
+          "name": "2.7 Driver A Decline (Từ chối -> Tự động chuyển đề xuất sang Driver B)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/driver-decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "driver-decline"
+              ]
+            },
+            "description": "Tài xế A từ chối cuốc. Hệ thống ghi nhận A vào danh sách _declined và tự động tìm tài xế kế tiếp (Driver B)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.8 Check Driver B Offers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/offers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "offers"
+              ]
+            },
+            "description": "Tài xế B kiểm tra danh sách cuốc xe và thấy cuốc vừa được chuyển tiếp tới mình."
+          },
+          "response": []
+        },
+        {
+          "name": "2.9 Driver B Accept Trip (DriverAccepted)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status is DriverAccepted', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData.status).to.eql('DriverAccepted');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/driver-accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "driver-accept"
+              ]
+            },
+            "description": "Tài xế B chấp nhận chuyến đi. Trạng thái chuyển thành DriverAccepted, phát sự kiện TripAccepted vào Outbox."
+          },
+          "response": []
+        },
+        {
+          "name": "2.10 Driver B Start En Route (EnRoute - Đang đến đón)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status is EnRoute', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData.status).to.eql('EnRoute');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/en-route",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "en-route"
+              ]
+            },
+            "description": "Tài xế B báo đang trên đường đến điểm đón khách (bước chuyển tiếp nghiệp vụ bắt buộc trước khi PickUp)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.11 Driver B Pick Up (PickedUp - Đã đón khách)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status is PickedUp', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData.status).to.eql('PickedUp');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/pickup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "pickup"
+              ]
+            },
+            "description": "Tài xế đón khách thành công. Chuyển sang trạng thái PickedUp, bắt đầu chở khách đến điểm đến."
+          },
+          "response": []
+        },
+        {
+          "name": "2.12 Driver B Drop Off (DroppedOff -> Outbox Saga)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status is DroppedOff', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData.status).to.eql('DroppedOff');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/dropoff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "dropoff"
+              ]
+            },
+            "description": "Tài xế trả khách tại điểm đến. TripService chuyển sang DroppedOff và ghi nhận sự kiện RideCompleted vào Transactional Outbox (kích hoạt RabbitMQ Saga thanh toán)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.13 Get Trip Status (Polling check Paid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Trip details loaded', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    console.log('Current Trip Status:', jsonData.status);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Xem chi tiết chuyến đi. Khi Outbox đẩy sang PaymentService và hoàn tất trừ tiền, trạng thái sẽ tự động đổi sang Paid."
+          },
+          "response": []
+        },
+        {
+          "name": "2.14 Cancel Trip (Kịch bản Rider từ chối / Hủy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "cancel"
+              ]
+            },
+            "description": "Kịch bản Rider từ chối báo giá hoặc hủy chuyến khi chưa đón khách -> Chuyển sang Cancelled."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Payment, Ledger & Gateway Aggregation",
+      "description": "Thanh toán cước, ghi sổ cái kép Double-Entry, hoàn tiền/bồi thường SAGA và API Gateway Aggregation.",
+      "item": [
+        {
+          "name": "3.1 Create Payment (Double-Entry Ledger & Idempotency)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.id) {",
+                  "    pm.environment.set('paymentId', jsonData.id);",
+                  "    pm.collectionVariables.set('paymentId', jsonData.id);",
+                  "    console.log('Saved paymentId:', jsonData.id);",
+                  "}",
+                  "pm.test('Payment processed', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"tripId\": \"{{tripId}}\",\n    \"paymentToken\": \"tok_visa_valid\",\n    \"method\": \"Card\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "description": "Thanh toán thủ công qua PaymentService với Idempotency Key, ghi nhận bút toán Nợ/Có (Double-Entry Ledger)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Get Payment By Trip ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/by-trip/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "by-trip",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Tra cứu thông tin thanh toán và các bút toán sổ cái (Debit/Credit) theo mã chuyến đi."
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 Get Aggregated Trip (API Gateway Aggregation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Aggregation returns trip and payment', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(jsonData).to.have.property('trip');",
+                  "    pm.expect(jsonData).to.have.property('paymentState');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/aggregate/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "aggregate",
+                "trips",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Mẫu thiết kế API Gateway Aggregation Pattern: Gọi song song TripService và PaymentService, ghép thành response duy nhất trong 1 request."
+          },
+          "response": []
+        },
+        {
+          "name": "3.4 Refund Payment (Admin / Saga Bồi thường)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}",
+                "refund"
+              ]
+            },
+            "description": "Quản trị viên hoàn tiền thủ công hoặc Saga tự động bồi thường khi Trip từ chối thanh toán. Đảo bút toán sổ cái kép sang Refunded."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "riderToken",
+      "value": ""
+    },
+    {
+      "key": "driverTokenA",
+      "value": ""
+    },
+    {
+      "key": "driverTokenB",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "tripId",
+      "value": ""
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    }
+  ]
+}

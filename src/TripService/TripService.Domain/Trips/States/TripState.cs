@@ -19,7 +19,6 @@ internal abstract class TripState
     public virtual TripState MarkPaymentPending() => Reject("ghi nhận thanh toán thất bại");
     public virtual TripState Cancel() => Reject("hủy chuyến");
 
-
     private TripState Reject(string action)
         => throw new DomainException($"Không thể {action} khi chuyến đang ở trạng thái {Status}");
 

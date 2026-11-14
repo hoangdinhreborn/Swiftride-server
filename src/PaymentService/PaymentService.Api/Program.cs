@@ -8,6 +8,7 @@ using PaymentService.Application.Common.Interfaces;
 using PaymentService.Application.Payments;
 using PaymentService.Infrastructure;
 using PaymentService.Infrastructure.Persistence;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddSwiftRideTelemetry("payment-service");
@@ -26,6 +27,7 @@ builder.Services.AddInfrastructure(
 builder.Services.AddSwiftRideAuth(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IAccessTokenProvider, HttpContextAccessTokenProvider>();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
@@ -37,6 +39,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapPaymentEndpoints();
-if (app.Environment.IsDevelopment()) app.MapDevAuthEndpoints(builder.Configuration);
-
+if (app.Environment.IsDevelopment())
+{
+    app.MapDevAuthEndpoints(builder.Configuration);
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.WithTitle("SwiftRide Payment Service API")
+        .WithTheme(ScalarTheme.BluePlanet);
+    });
+}
 app.Run();

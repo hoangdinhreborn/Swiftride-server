@@ -28,6 +28,10 @@ swiftride-server/
 │   ├── architecture.md                              # Tài liệu kiến trúc toàn diện (file này)
 │   └── RideLite-KienTrucPhanMem.pdf                 # Đặc tả bài tập lớn
 │
+├── postmans/                                        # [POSTMAN API COLLECTIONS & ENVIRONMENT]
+│   ├── SwiftRide_Comprehensive.postman_collection.json  # Collection 3 folder đầy đủ quy trình và test script
+│   └── SwiftRide.postman_environment.json           # File cấu hình biến môi trường Postman (baseUrl, tokens, tripId)
+│
 ├── scripts/
 │   └── smoke.sh                                     # Kịch bản kiểm thử E2E tự động theo 3 nhánh flowchart
 │

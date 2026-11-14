@@ -107,7 +107,13 @@ Kịch bản kiểm thử sẽ tự động chạy 3 kịch bản theo đúng đ
 3. **Kịch bản 3 (Tài xế từ chối quá $k$ lần)**:
    - Các tài xế từ chối vượt quá số lần cho phép ($k = 3$, lần thứ 4 từ chối) $\rightarrow$ Hệ thống chuyển sang trạng thái kết thúc **`Failed`**.
 
-### Bước 4: Mở Dashboard giám sát
+### Bước 4: Demo API Bằng Postman Collection
+Bộ file Postman đầy đủ đã được chuẩn bị sẵn trong thư mục `postmans/`:
+- **`postmans/SwiftRide_Comprehensive.postman_collection.json`**: Bộ Collection chia làm 3 folder tuần tự (Authentication, Trip Lifecycle & Driver Dispatching, Payment, Ledger & Gateway Aggregation) với script Test tự động set token, tripId, paymentId vào biến môi trường.
+- **`postmans/SwiftRide.postman_environment.json`**: File môi trường chứa sẵn `baseUrl = http://localhost:5000` và các biến lưu tự động.
+*(Xem chi tiết hướng dẫn tại [postmans/README.md](postmans/README.md))*.
+
+### Bước 5: Mở Dashboard giám sát
 - **Tra cứu Traces & Logs**: Truy cập `.NET Aspire Dashboard` tại `http://localhost:18888` để xem biểu đồ Gantt phân tán của request qua từng service.
 - **Theo dõi Hàng đợi Message**: Truy cập `RabbitMQ Management` tại `http://localhost:15672` (User: `swiftride`, Password: `swiftride123`).
 
